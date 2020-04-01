@@ -20,6 +20,7 @@
     "fs": "0.0.1-security",
     "http": "0.0.0",
     "jsonwebtoken": "^8.5.1",
+    "moment-timezone": "^0.5.28",
     "mysql": "^2.18.1",
     "util": "^0.12.2",
     "uuid": "^7.0.2",
