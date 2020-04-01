@@ -27,8 +27,8 @@ winston.configure({
   ),
   //defaultMeta: { service: 'user-service' },
   transports: [
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
+    new winston.transports.File({ filename: '../logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: '../logs/combined.log' })
   ]
 });
 // If we're not in production then log also to the `console` 
