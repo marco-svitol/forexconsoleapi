@@ -1,7 +1,8 @@
 # forexconsoleapi
-Backend of the Mondial Change console
+Backend services for Mondial Change console
 
-Exposes APIs to Web front end and POS client agents
+Publishes APIs to for front end and POS client agents
 
+--
 
 #### Author: [Marco Cambon]
