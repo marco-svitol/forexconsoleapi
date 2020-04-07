@@ -19,29 +19,28 @@ app.use(function(req, res, next) { // Run the context for each request. Assign a
 });
 checkJWT.unless = unless;   //use "unless" module to exclude specific requests for CheckJWT
 // Use JWT auth to secure the API
-app.use(checkJWT.unless({path: ['/api/front/login']}))//,'/api/front/maincashdeposit','/api/front/action','/api/front/main','/api/pos/transactionAdd']}))
+app.use(checkJWT.unless({path: ['/api/front/login','/api/pos/transactionAdd','/api/pos/transactionDel']}))//,'/api/front/maincashdeposit','/api/front/action','/api/front/main','/api/pos/transactionAdd']}))
 
 const cors = require("cors");
 var corsOptions = {
   origin: "http://localhost:8081"
+
 };
 app.use(cors(corsOptions));
 
 var logger=require('./app/logger'); 
 
 function srvconsoledir(request, start=1, err = 0){ //internal: log service call info to console
-  let splitted = request.path.split('/')
-  let srvname = splitted[1]
   let params = ""
   if (err==0){
     if (start){
       if (Object.keys(request.body).length != 0){
         params = JSON.stringify(request.body)
-        if (srvname == 'login'){params = 'user: ' + request.body.user}
+        if (request.path.includes('login')){params = 'for user ' + request.body.username}
       }else{
         params = JSON.stringify(request.query)
       }
-      logger.info(`${srvname} ${request.path} service request from ${request.connection.remoteAddress} : ${params}`)
+      logger.info(`${request.path} service request ${params}`)
       //perfy.start(rTracer.id())
     }
     else{
