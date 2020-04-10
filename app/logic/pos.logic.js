@@ -2,19 +2,23 @@ const db = require("../database").pool;
 const logger=require('winston');
 const mysqlformat = require('mysql').format;
 
-exports.lookupadd = (req,res,next) => {
-  POSGet(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site, (err,POSId) => {
+exports.verifyKey = (req,res,next) => {
+  POSGet(req.body.POSCode, req.body.APIKey, (err,POSId) => {
     if(err){
       throw (err)
     }
     if (POSId === 0) {
-      POSAdd(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site,function(err, POSId){
+      logger.warn("POS not authorized or APIKey is invalid")
+        res.status(401).send({
+          message: "POS not authorized or APIKey is invalid"
+        });
+      /* POSAdd(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site,function(err, POSId){
         if(err && POSId > 0) throw(err)
         logger.info('PSAction: added POSId '+POSId)
         req.body.POSId = POSId;
         POSlogHeartBeat(POSId);
         next()
-      })
+      }) */
     }else{
       req.body.POSId = POSId;
       POSlogHeartBeat(POSId);
@@ -23,9 +27,9 @@ exports.lookupadd = (req,res,next) => {
   })
 }
 
-function POSGet(hostname, sn, manuf, site, next){
-  let strQuery = 'call POSGet(?,?,?,?)'
-  db.query(strQuery, [hostname, sn, manuf, site], (err,res) => {
+function POSGet(POSCode, APIKey , next){
+  let strQuery = 'call POSGet(?,?)'
+  db.query(strQuery, [POSCode, APIKey], (err,res) => {
     if (err) {
       next(err,0)
     }else{

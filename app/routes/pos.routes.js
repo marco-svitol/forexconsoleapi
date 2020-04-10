@@ -3,7 +3,7 @@ module.exports = myapp => {
   
   var router = require("express").Router();
 
-  router.use("/",pos.lookupadd);
+  router.use("/",pos.verifyKey);
   router.post("/transactionAdd", pos.transactionAdd);
   router.post("/transactionDel", pos.transactionDel);
   router.post("/transactionUndel", pos.transactionUndel);
