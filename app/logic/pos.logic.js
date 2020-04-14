@@ -3,28 +3,32 @@ const logger=require('winston');
 const mysqlformat = require('mysql').format;
 
 exports.verifyKey = (req,res,next) => {
-  POSGet(req.body.POSCode, req.body.APIKey, (err,POSId) => {
-    if(err){
-      throw (err)
-    }
-    if (POSId === 0) {
-      logger.warn("POS not authorized or APIKey is invalid")
-        res.status(401).send({
-          message: "POS not authorized or APIKey is invalid"
-        });
-      /* POSAdd(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site,function(err, POSId){
-        if(err && POSId > 0) throw(err)
-        logger.info('PSAction: added POSId '+POSId)
+  try{
+    POSGet(req.body.apiAuth.POSCode, req.body.apiAuth.APIKey, (err,POSId) => {
+      if(err){
+        logger.error (" cannot process Auth info : " + err)
+        POSId = 0
+      }
+      if (POSId === 0) {
+        logger.warn("POS not authorized or APIKey is invalid")
+          res.status(401).send("POS not authorized or APIKey is invalid");
+        /* POSAdd(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site,function(err, POSId){
+          if(err && POSId > 0) throw(err)
+          logger.info('PSAction: added POSId '+POSId)
+          req.body.POSId = POSId;
+          POSlogHeartBeat(POSId);
+          next()
+        }) */
+      }else{
         req.body.POSId = POSId;
         POSlogHeartBeat(POSId);
-        next()
-      }) */
-    }else{
-      req.body.POSId = POSId;
-      POSlogHeartBeat(POSId);
-      next();
-    }
-  })
+        next();
+      }
+    })
+  }catch(err){
+    logger.error (" cannot process Auth info : " + err)
+    res.status(401).send("POS not authorized or APIKey is invalid");
+  }
 }
 
 function POSGet(POSCode, APIKey , next){
@@ -69,9 +73,9 @@ function POSlogHeartBeat(POSId){
 exports.transactionAdd = (req, res) => {
   let sqlQuery = ''
   let transTot = req.body.transactions.length
-  let spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  let spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?,?)'
   for (var t of req.body.transactions){
-    var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userID,t.isPOStransaction,req.body.POSId,t.transIsDeleted,t.username];
+    var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userId,t.isPOStransaction,req.body.POSId,t.transIsDeleted];
     sqlQuery =sqlQuery + `${mysqlformat(spcall, inserts)};`
   }
   db.query(sqlQuery, (err,qres) => {
@@ -81,16 +85,18 @@ exports.transactionAdd = (req, res) => {
           message: "Error adding transaction: " + err
         });
     }else{
-      if (qres.length == transTot){
-        var mess = `Added ${transTot}/${transTot} transactions`
+      //(if (qres.length == transTot){
+        var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
+        var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
+        var mess = `Transcations added ${transSucc.length}, not added ${transFail.length}`
         logger.info(mess)
-        res.status(200).send({added: transTot,duplicates: null})  
-      }else{
+        res.status(200).send({added: transSucc.map(e => e[0]._oid), notadded: transFail.map(e => e[0]._oid)})  
+      /*}else{
         var transDup = qres.filter(element => element.length == 1)
         var mess = `Added ${transTot-transDup.length}/${transTot} transactions. Duplicates transactions: ${transDup.map(tr => tr[0]._oid)}, ${transDup.map(tr => tr[0]._journal_date_time)}`
         logger.error(mess)
         res.status(200).send({added: transTot -transDup.length, duplicates: transDup.map(tr => tr[0]._oid)}) 
-      }
+      }*/
     }
   })
 }
