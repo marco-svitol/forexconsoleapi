@@ -12,13 +12,6 @@ exports.verifyKey = (req,res,next) => {
       if (POSId === 0) {
         logger.warn("POS not authorized or APIKey is invalid")
           res.status(401).send("POS not authorized or APIKey is invalid");
-        /* POSAdd(req.body.POS.cn,req.body.POS.sn,req.body.POS.vendor,req.body.POS.site,function(err, POSId){
-          if(err && POSId > 0) throw(err)
-          logger.info('PSAction: added POSId '+POSId)
-          req.body.POSId = POSId;
-          POSlogHeartBeat(POSId);
-          next()
-        }) */
       }else{
         req.body.POSId = POSId;
         POSlogHeartBeat(POSId);
@@ -70,84 +63,43 @@ function POSlogHeartBeat(POSId){
   })
 }
 
-exports.transactionAdd = (req, res) => {
+exports.transactionsAdd = (req, res) => {
   let sqlQuery = ''
-  let transTot = req.body.transactions.length
-  let spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?,?)'
   for (var t of req.body.transactions){
-    var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userId,t.isPOStransaction,req.body.POSId,t.transIsDeleted];
-    sqlQuery =sqlQuery + `${mysqlformat(spcall, inserts)};`
+    switch (t.transactionType) {
+      case 0: //add
+        var spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?,?)'
+        var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userId,t.isPOStransaction,req.body.POSId,t.transIsDeleted];
+      break;
+      case 1: //del
+        var spcall = 'call POStransactionDel(?,?)'
+        var inserts = [t.oid,req.body.POSId];
+      break;
+      case 2: //undel
+        var spcall = 'call POStransactionUndel(?,?)'
+        var inserts = [t.oid,req.body.POSId];
+      break;
+    }
+    sqlQuery += `${mysqlformat(spcall, inserts)};`
   }
   db.query(sqlQuery, (err,qres) => {
     if (err) {
-        logger.error("error adding transaction:" + err)
-        res.status(500).send({
-          message: "Error adding transaction: " + err
-        });
+        logger.error("error processing transaction:" + err)
+        res.status(500).send("Error while processing transactions");
     }else{
-      //(if (qres.length == transTot){
         var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
         var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
-        var mess = `Transcations added ${transSucc.length}, not added ${transFail.length}`
+        var mess = `Transcations processed ${transSucc.length}, not processed ${transFail.length}`
         logger.info(mess)
         res.status(200).send({added: transSucc.map(e => e[0]._oid), notadded: transFail.map(e => e[0]._oid)})  
-      /*}else{
-        var transDup = qres.filter(element => element.length == 1)
-        var mess = `Added ${transTot-transDup.length}/${transTot} transactions. Duplicates transactions: ${transDup.map(tr => tr[0]._oid)}, ${transDup.map(tr => tr[0]._journal_date_time)}`
-        logger.error(mess)
-        res.status(200).send({added: transTot -transDup.length, duplicates: transDup.map(tr => tr[0]._oid)}) 
-      }*/
     }
   })
 }
 
+exports.actionsGet = (req, res) => {
 
-exports.transactionDel = (req, res) => {
-  let sqlQuery = ''
-  let delsTot = req.body.deletes.length
-  let spcall = 'call POStransactionDel(?,?,?,?,?)'
-  for (var t of req.body.deletes){
-    var inserts = [t.oid,t.journal_date_time,t.userID,req.body.POSId,t.username];
-    sqlQuery =sqlQuery + `${mysqlformat(spcall, inserts)};`
-  }
-  db.query(sqlQuery, (err,qres) => {
-    if (err) {
-        logger.error("error removing transaction:" + err)
-        res.status(500).send({
-          message: "Error removing transaction: " + err
-        });
-    }else{
-      if (qres.length == delsTot){
-        var mess = `Deleted ${delsTot}/${delsTot} transactions`
-        logger.info(mess)
-        res.status(200).send({Del: delsTot, notDel: null})  
-      }else{
-        var notDel = qres.filter(element => element.length == 1)
-        var mess = `Deleted ${delsTot-notDel.length}/${delsTot} transactions. Not deleted transactions: ${notDel.map(tr => tr[0]._oid)}, ${notDel.map(tr => tr[0]._journal_date_time)}`
-        logger.error(mess)
-        res.status(200).send({Del: delsTot - notDel.length, notDel: notDel.map(tr => tr[0].deltransid)}) 
-      }
-    }
-  })
-}
+  
 
-exports.transactionUndel = (req, res) => {
-  let sqlQuery = ''
-  let spcall = 'call POStransactionUndel(?,?,?,?,?)'
-  var inserts = [req.body.oid,req.body.journal_date_time,req.body.userID,req.body.POSId,req.body.username];
-  sqlQuery =sqlQuery + `${mysqlformat(spcall, inserts)};`
-  db.query(sqlQuery, (err,qres) => {
-    if (err) {
-      logger.error("error undeleting transaction:" + err)
-      res.status(500).send({
-        message: "Error undeleting transaction: " + err
-      });
-    }else{
-      var mess = `UnDeleted transId ${qres[0][0].undeltransid}`
-      logger.info(mess)
-      res.status(200).send({Undel: `${qres[0][0].undeltransid}` })  
-    }
-  })
 }
 
 exports.transactionWiD = (req, res) => {

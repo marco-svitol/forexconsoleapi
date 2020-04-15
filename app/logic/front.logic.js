@@ -3,8 +3,9 @@ const db = require("../database");
 const logger=require('winston');
 const mysqlformat = require('mysql').format;
 const jwt = require('jsonwebtoken');
+var randtoken = require('rand-token')
 var tokenproperties = appConfig.tokenproperties  //Token
-
+var refreshTokens = {}
 
 exports.login = (req, res) => {  // Login Service //40ena!
   var username = req.body.username,
@@ -23,15 +24,31 @@ exports.login = (req, res) => {  // Login Service //40ena!
         var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
           expiresIn: tokenproperties.tokenTimeout
         });
-        //var refreshToken = randtoken.uid(256)
-        //refreshTokens[refreshToken] = username
-        res.status(200).send({ auth: true, token: token});
+        var refreshToken = randtoken.uid(256)
+        refreshTokens[refreshToken] = username
+        res.status(200).send({ auth: true, token: token, refreshtoken: refreshToken});
       }else{ //if((loginmsg === 'disabled') or (loginmsg === 'notfound'))      {
         logger.info(`Login failed for user ${username}: ${lresult}`);
         res.status(401).send({ auth: false});
       }
     }
   })
+}
+
+exports.refreshtoken = (req, res) => { 
+  var username = req.body.username
+  var refreshToken = req.body.refreshtoken
+  if((refreshToken in refreshTokens) && (refreshTokens[refreshToken] == username)) {
+    var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
+      expiresIn: tokenproperties.tokenTimeout
+    });
+    logger.info(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 36)/100} hours`);
+    res.status(200).send({ auth: true, token: token})
+  }
+  else {
+    consoledir(`Refresh token not available for user ${username}`);
+    res.status(401).send({ auth: false});
+  }
 }
 
 exports.logout = (req, res) => {

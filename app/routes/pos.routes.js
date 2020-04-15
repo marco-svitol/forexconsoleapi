@@ -4,9 +4,8 @@ module.exports = myapp => {
   var router = require("express").Router();
 
   router.use(pos.verifyKey);
-  router.post("/transactionAdd", pos.transactionAdd);
-  router.post("/transactionDel", pos.transactionDel);
-  router.post("/transactionUndel", pos.transactionUndel);
+  router.post("/transactionsAdd", pos.transactionsAdd);
+  router.post("/actionsGet", pos.actionsGet);
   router.post("/transactionWiD", pos.transactionWiD);
   router.post("/transactionDep", pos.transactionDep);
   /*router.get("/:id", tutorials.findOne);
