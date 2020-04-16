@@ -1,6 +1,7 @@
 const unless = require('express-unless');
 const jwt = require('jsonwebtoken');
 const appConfig = require("../config/app.config.js");
+const logger=require('../logger'); 
 
 module.exports = myapp => {
   const front = require("../logic/front.logic");

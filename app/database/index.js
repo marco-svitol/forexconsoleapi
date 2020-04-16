@@ -60,9 +60,9 @@ module.exports._maincashdeposit = function (currency, amount, exchangerate, next
 }
 
 module.exports._addAction = function (action, POSId, currency, amount, next) {
-  let strQuery = `CALL pcpPOSAddAction (?,"${action}",?);`
-  const actionparams  = `{"currency" : "${currency}","amount" : ${amount}}`
-  pool.query(strQuery, [POSId, actionparams], (err,res) => {
+  let strQuery = `CALL pcpPOSAddAction (?,"${action}",?,?);`
+  //const actionparams  = `{"currency" : "${currency}","amount" : ${amount}}`
+  pool.query(strQuery, [POSId, currency, amount], (err,res) => {
     if (err) {
       next (err, 0)
     }else{

@@ -1,6 +1,7 @@
 const appConfig = require("../config/app.config.js");
 const db = require("../database");
-const logger=require('winston');
+const logger=require('../logger'); 
+//const logger=require('winston');
 const mysqlformat = require('mysql').format;
 const jwt = require('jsonwebtoken');
 var randtoken = require('rand-token')

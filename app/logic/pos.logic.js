@@ -1,5 +1,6 @@
 const db = require("../database").pool;
-const logger=require('winston');
+const logger=require('../logger');  
+//const logger=require('winston');
 const mysqlformat = require('mysql').format;
 
 exports.verifyKey = (req,res,next) => {
@@ -97,13 +98,27 @@ exports.transactionsAdd = (req, res) => {
 }
 
 exports.actionsGet = (req, res) => {
-
-  
-
+  var sqlQuery = 'call POSActionsGet(?)'
+  db.query(sqlQuery, req.body.POSId, (err, qres) => {
+    if (err) {
+      logger.error("error retrieveing POS actions:" + err)
+      res.status(500).send("Error while retrieving POS actions");
+    }else{
+      logger.info("mess")
+      res.status(200).send(qres[0])  
+    }
+  })
 }
 
-exports.transactionWiD = (req, res) => {
-}
-
-exports.transactionDep = (req, res) => {
+exports.actionAck = (req, res) => {
+  var sqlQuery = 'call POSActionAck(?,?)'
+  db.query(sqlQuery, [req.body.POSId, req.body.actionAck.POSActionQueueId ], (err, qres) => {
+    if (err || qres.length === 0) {
+      logger.error("error pulling POS action from queue:" + err)
+      res.status(500).send("Error while pulling POS action");
+    }else{
+      logger.info("mess")
+      res.status(200).send()
+    }
+  })
 }

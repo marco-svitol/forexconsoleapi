@@ -6,9 +6,6 @@ module.exports = myapp => {
   router.use(pos.verifyKey);
   router.post("/transactionsAdd", pos.transactionsAdd);
   router.post("/actionsGet", pos.actionsGet);
-  router.post("/transactionWiD", pos.transactionWiD);
-  router.post("/transactionDep", pos.transactionDep);
-  /*router.get("/:id", tutorials.findOne);
-  router.delete("/", tutorials.deleteAll);*/ 0
+  router.post("/actionAck", pos.actionAck);
   myapp.use('/api/pos', router);
 };
