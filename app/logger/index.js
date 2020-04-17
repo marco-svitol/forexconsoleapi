@@ -9,7 +9,7 @@ var reqId = function() {
 
 const appendTimestamp = winston.format((info, opts) => {
   if(opts.tz)
-    info.timestamp = moment().tz(opts.tz).format('DD-MM-YYYY hh:mm:ss:SSS').trim();
+    info.timestamp = moment().tz(opts.tz).format('DD-MM-YYYY HH:mm:ss:SSS').trim();
   return info;
 });
 

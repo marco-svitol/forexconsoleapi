@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 var randtoken = require('rand-token')
 var tokenproperties = appConfig.tokenproperties  //Token
 var refreshTokens = {}
+var usersrole = {}
 
 exports.login = (req, res) => {  // Login Service //40ena!
   var username = req.body.username,
@@ -21,12 +22,13 @@ exports.login = (req, res) => {  // Login Service //40ena!
     }else{
       if (lresult.success){
         //req.session.username = username;
-        logger.info(`Login OK for user ${username}. Token expires in ${Math.round(tokenproperties.tokenTimeout / 36)/100} hours`)      ;
+        logger.info(`Login OK for user ${username}. Token expires in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`)      ;
         var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
           expiresIn: tokenproperties.tokenTimeout
         });
         var refreshToken = randtoken.uid(256)
         refreshTokens[refreshToken] = username
+        usersrole[username] = lresult.role
         res.status(200).send({ auth: true, token: token, refreshtoken: refreshToken});
       }else{ //if((loginmsg === 'disabled') or (loginmsg === 'notfound'))      {
         logger.info(`Login failed for user ${username}: ${lresult}`);
@@ -36,18 +38,19 @@ exports.login = (req, res) => {  // Login Service //40ena!
   })
 }
 
+//TODO: remove old refreshtoken + refreshtoken expiration
 exports.refreshtoken = (req, res) => { 
   var username = req.body.username
   var refreshToken = req.body.refreshtoken
   if((refreshToken in refreshTokens) && (refreshTokens[refreshToken] == username)) {
-    var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
+    var token = jwt.sign({ id: username, role: usersrole[username]}, tokenproperties.secret, {
       expiresIn: tokenproperties.tokenTimeout
     });
     logger.info(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`);
     res.status(200).send({ auth: true, token: token})
   }
   else {
-    consoledir(`Refresh token not available for user ${username}`);
+    logger.error(`Refresh token not available for user ${username}`);
     res.status(401).send({ auth: false});
   }
 }
