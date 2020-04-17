@@ -10,8 +10,9 @@ module.exports = myapp => {
 
   checkJWT.unless = unless;   //use "unless" module to exclude specific requests for CheckJWT
   router.use(checkJWT.unless({path: ['/api/front/login']})) // Use JWT auth to secure the API
-
+router
   router.post("/login", front.login);
+  router.post("/auth/refreshtoken", front.refreshtoken);
   router.post("/logout", front.logout);
   router.get("/main", front.main);
   router.post("/maincashdeposit", front.maincashdeposit);

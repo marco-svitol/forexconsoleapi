@@ -1,4 +1,5 @@
 const db = require("../database").pool;
+const store = require("../database");
 const logger=require('../logger');  
 //const logger=require('winston');
 const mysqlformat = require('mysql').format;
@@ -40,20 +41,20 @@ function POSGet(POSCode, APIKey , next){
   })
 }
 
-function POSAdd(hostname, sn, manuf, site, next){
-  let strQuery = 'call POSAdd(?,?,?,?,?)'
-  db.query(strQuery, [hostname, sn, manuf, site, hostname], (err,res) => {
-    if (err) {
-      next (err, 0)
-    }else{
-      if (res[0].length > 0){
-        next(null,res[0][0].POSId);
-      }else{
-        next(null,0);
-      }
-    }
-  })
-}
+// function POSAdd(hostname, sn, manuf, site, next){
+//   let strQuery = 'call POSAdd(?,?,?,?,?)'
+//   db.query(strQuery, [hostname, sn, manuf, site, hostname], (err,res) => {
+//     if (err) {
+//       next (err, 0)
+//     }else{
+//       if (res[0].length > 0){
+//         next(null,res[0][0].POSId);
+//       }else{
+//         next(null,0);
+//       }
+//     }
+//   })
+// }
 
 function POSlogHeartBeat(POSId){ 
   let strQuery = 'call POSlogHeartBeat(?)'
@@ -86,38 +87,92 @@ exports.transactionsAdd = (req, res) => {
   db.query(sqlQuery, (err,qres) => {
     if (err) {
         logger.error("error processing transaction:" + err)
-        res.status(500).send("Error while processing transactions");
+        return res.status(500).send("Error while processing transactions");
     }else{
-        var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
-        var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
-        var mess = `Transcations processed ${transSucc.length}, not processed ${transFail.length}`
-        logger.info(mess)
-        res.status(200).send({added: transSucc.map(e => e[0]._oid), notadded: transFail.map(e => e[0]._oid)})  
+      var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
+      var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
+      var mess = `Transations processed ${transSucc.length}, not processed ${transFail.length}`
+      logger.info(mess)
+      res.status(200).send({added: transSucc.map(e => e[0]._oid), notadded: transFail.map(e => e[0]._oid)})
+      logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans failed ${transFail.map(e => e[0]._oid).toString()}`)
+
+      logger.info("Running deposit matching")
+      //Step1 (transaction objs): filter Deposit and successfully added transactions only
+      var tdeposit = req.body.transactions.filter(function(t) {
+        // checking failed transaction does not contain oid
+        if(transFail.indexOf(t.oid) == -1 || t.forex_type == 3)
+          return true;
+        else
+          return false;
+      });
+      //Step2 (action objs): check if there is any 'sendtopos' action for this specific POSId
+      logger.debug(`-Step1: Found ${tdeposit.length} succesfull deposit transactions`)
+      if (tdeposit.length > 0){
+        store._actionsGet (req.body.POSId, 'sendtopos', function (err, filteredactions){
+          if (err) {
+            logger.error("Error retrieving POS actions while matching deposit transaction: " + err)
+            //TODO: manage error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          }else{
+            logger.debug(`--Step2: Fetched ${filteredactions.length} 'sendtopos' actions for POSId ${req.body.POSId}`)
+            if (filteredactions.length > 0){
+              //Step3 (actions vs trans): match transactions and actions based on currency
+              for (action of filteredactions[0]){
+                params = JSON.parse(action.POSActionParams)
+                tmatch = tdeposit.filter(t => t.forex_oid == params.currency)
+                logger.debug(`---Step3: Matched ${tmatch.length} transactions vs actions having same currency `)
+                if (tmatch.length > 0){
+                  //sum all transactions before matching
+                  const totaldeposit = tmatch.reduce((a, b) => +a + +b.foreign_amount, 0);
+                  if (totaldeposit != params.amount){
+                    logger.warn(`----Step4: Amount NOT matching. Pulling action but raising a console alert`)
+                    store._addAlert(req.body.POSId, 3, t.forex_oid, 3, 'transactionsAdd', 'Alert_sendtoposMismatch', (err,qres) => {
+                      if (err) {
+                        logger.error ("-----Step4: error while logging alert: "+err)
+                      }else{
+                        logger.debug(`-----Step4: Alert ${qres} added to console`)
+                      }
+                    })
+                  }else{
+                    logger.debug(`----Step4: Amount matching. Removing action silently`)
+                  }
+                  //remove action
+                  store._actionAck (req.body.POSId, action.POSActionQueueId , function (err, qres){
+                    if (err || qres.length === 0) {
+                      logger.error("-----Step5: Error pulling sendtopos action from queue:" + err)
+                    }else{
+                      logger.debug(`-----Step5: Action sendtopos with id ${action.POSActionQueueId} pulled from queue`)
+                    }
+                  })
+                }
+              }
+            }
+          }
+        })
+      }        
     }
   })
 }
 
 exports.actionsGet = (req, res) => {
-  var sqlQuery = 'call POSActionsGet(?)'
-  db.query(sqlQuery, req.body.POSId, (err, qres) => {
+  store._actionsGet (req.body.POSId, null , function (err, qres){
     if (err) {
       logger.error("error retrieveing POS actions:" + err)
       res.status(500).send("Error while retrieving POS actions");
     }else{
-      logger.info("mess")
-      res.status(200).send(qres[0])  
+      let fres = qres[0].filter(e => e.action != 'sendtopos')
+      logger.info(`Fetched ${fres.length} actions after filtering`)
+      res.status(200).send(fres)  
     }
   })
 }
 
 exports.actionAck = (req, res) => {
-  var sqlQuery = 'call POSActionAck(?,?)'
-  db.query(sqlQuery, [req.body.POSId, req.body.actionAck.POSActionQueueId ], (err, qres) => {
+  store._actionAck (req.body.POSId, req.body.actionAck.POSActionQueueId, function (err, qres){
     if (err || qres.length === 0) {
       logger.error("error pulling POS action from queue:" + err)
       res.status(500).send("Error while pulling POS action");
     }else{
-      logger.info("mess")
+      logger.info(`Action ${req.body.actionAck.POSActionQueueId} acknowledged`)
       res.status(200).send()
     }
   })

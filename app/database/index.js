@@ -77,9 +77,9 @@ module.exports._addAction = function (action, POSId, currency, amount, next) {
   })  
 }
 
-module.exports._cancelAction = function (POSId, actionId, next) {
-  let strQuery = `CALL pcpPOSCancelAction (?,?);`
-  pool.query(strQuery, [POSId, actionId], (err,res) => {
+module.exports._cancelAction = function (actionId, next) {
+  let strQuery = `CALL pcpPOSCancelAction (?);`
+  pool.query(strQuery, [actionId], (err,res) => {
     if (err) {
       next (err, 0)
     }else{
@@ -136,6 +136,47 @@ module.exports._mainview = function (next) {
     }
   })  
 }
+
+//POS
+module.exports._actionsGet = function (POSId, actionfilter, next) {
+  var sqlQuery = 'call POSActionsGet(?,?);'
+  pool.query(sqlQuery, [POSId, actionfilter], (err, res) => {
+    if (err) {
+      next(err, null)
+    }else{
+      next(null, res) 
+    }
+  })
+}
+
+module.exports._actionAck = function (POSId, POSActionQueueId, next) {
+  var sqlQuery = 'call POSActionAck(?,?)'
+  pool.query(sqlQuery, [POSId, POSActionQueueId], (err, res) => {
+    if (err) {
+      next(err, null)
+    }else{
+      next(null, res) 
+    }
+  })
+}
+
+module.exports._addAlert = function (POSId, transtype, currencyId, severity, emitter, alertmsg, next) {
+  var sqlQuery = 'call pcpAddAlert(?,?,?,?,?,?)'
+  pool.query(sqlQuery, [POSId, transtype, currencyId, severity, emitter, alertmsg], (err, res) => {
+    if (err) {
+      next(err, null)
+    }else{
+      if (res.length > 0){
+        if (res[0][0].alertId > 0){
+          next(null,res[0][0].alertId);
+          return;
+        }
+      }
+      next(null,0);
+    }
+  })
+}
+
 
 
 pool.query = util.promisify(pool.query)

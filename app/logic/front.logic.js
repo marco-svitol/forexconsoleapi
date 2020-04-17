@@ -43,7 +43,7 @@ exports.refreshtoken = (req, res) => {
     var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
       expiresIn: tokenproperties.tokenTimeout
     });
-    logger.info(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 36)/100} hours`);
+    logger.info(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`);
     res.status(200).send({ auth: true, token: token})
   }
   else {
@@ -96,17 +96,16 @@ exports.action = (req, res) => {
       err?(logger.error(`Action ${action} error: ${err}`),res.status(500).send({ actionid: 0}))
         :(logger.warn(`Action ${action} action not added to queue..already there?`),res.status(200).send({ actionid: 0}))
     }else{
-      logger.debug(`Succesfully added Action ${action} action to queue with id ${actionid}`)
+      logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
       res.status(201).send({ actionid: actionid});
     }
   })
 }
 
 exports.cancelAction = (req, res) => {
-  var POSId = req.body.POSId
   var actionId = req.body.actionId
-  if (actionId === null || actionId === '' || POSId === null ||  POSId === ''){return res.status(400).send("Bad request, check params please")}
-  db._cancelAction(POSId, actionId, function (err, actionid) {
+  if (actionId === null || actionId === ''){return res.status(400).send("Bad request, check params please")}
+  db._cancelAction(actionId, function (err, actionid) {
     if (err || !actionid){
       err?(logger.error(`Action ${actionid} not cancelled error: ${err}`),res.status(500).send({ actionid: 0}))
       :(logger.warn(`Action ${actionid} cancel failed : was executed meanwhile?`),res.status(200).send({ actionid: 0}))

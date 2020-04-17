@@ -15,7 +15,7 @@ const appendTimestamp = winston.format((info, opts) => {
 
 //const deflogger = winston.createLogger({
 winston.configure({  
-  level: 'debug',
+  level: 'info',
   format: winston.format.combine(
     appendTimestamp({ tz: 'Europe/Rome' }),
     //winston.format.timestamp(),

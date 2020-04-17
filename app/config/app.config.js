@@ -10,7 +10,7 @@ module.exports = {
   },
   "tokenproperties": {
     "secret" : process.env.TOKENSECRET,
-    "tokenTimeout": 600,
-    "refresh_tokenTimeout" : 360000
+    "tokenTimeout": 3600,
+    "refresh_tokenTimeout" : 172800
   }
 }

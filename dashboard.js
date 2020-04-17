@@ -17,11 +17,13 @@ app.use(function(req, res, next) { // Run the context for each request. Assign a
 });
 
 const cors = require("cors");
-var corsOptions = {
+/*var corsOptions = {
   origin: "http://localhost:8081"
 
 };
-app.use(cors(corsOptions));
+app.use(cors(corsOptions));*/
+
+app.use(cors());
 
 var logger=require('./app/logger'); 
 
