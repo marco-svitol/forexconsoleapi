@@ -67,17 +67,18 @@ function POSlogHeartBeat(POSId){
 
 exports.transactionsAdd = (req, res) => {
   let sqlQuery = ''
-  for (var t of req.body.transactions){
-    switch (t.transactionType) {
-      case 0: //add
-        var spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?,?)'
-        var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userId,t.isPOStransaction,req.body.POSId,t.transIsDeleted];
+  for (var item of req.body.transactions){
+    let t = item.Transaction;
+    switch (item.IDU) {
+      case "I": //add
+        var spcall = 'call POStransactionAdd(?,?,?,?,?,?,?,?,?,?,?)'
+        var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userID,t.isPOStransaction,req.body.POSId];
       break;
-      case 1: //del
+      case "D": //del
         var spcall = 'call POStransactionDel(?,?)'
         var inserts = [t.oid,req.body.POSId];
       break;
-      case 2: //undel
+      case "U": //undel
         var spcall = 'call POStransactionUndel(?,?)'
         var inserts = [t.oid,req.body.POSId];
       break;
@@ -89,18 +90,28 @@ exports.transactionsAdd = (req, res) => {
         logger.error("error processing transaction:" + err)
         return res.status(500).send("Error while processing transactions");
     }else{
+      qresclean = qres.filter(element => element[0] != undefined)
+      responselist = req.body.transactions.map( ({QId}, e) => ({QId, added : qresclean[e][0].result}) )
+      /*
+        function( {QId}, e ){
+          return ({QId, added : qresclean[e][0].result})
+        }
+      )*/
+
       var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
       var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
-      var mess = `Transations processed ${transSucc.length}, not processed ${transFail.length}`
-      logger.info(mess)
-      res.status(200).send({added: transSucc.map(e => e[0]._oid), notadded: transFail.map(e => e[0]._oid)})
+
+      logger.info(`Transactions processed ${transSucc.length}, not processed ${transFail.length}`)
+      res.status(200).send(responselist)
       logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans failed ${transFail.map(e => e[0]._oid).toString()}`)
+
+      //---------------------------------------------------------------------------------------------------------------
 
       logger.info("Running deposit matching")
       //Step1 (transaction objs): filter Deposit and successfully added transactions only
       var tdeposit = req.body.transactions.filter(function(t) {
         // checking failed transaction does not contain oid
-        if(transFail.indexOf(t.oid) == -1 || t.forex_type == 3)
+        if(transFail.indexOf(t.Transaction.oid) == -1 && t.Transaction.forex_type == 3)
           return true;
         else
           return false;
@@ -118,14 +129,14 @@ exports.transactionsAdd = (req, res) => {
               //Step3 (actions vs trans): match transactions and actions based on currency
               for (action of filteredactions[0]){
                 params = JSON.parse(action.POSActionParams)
-                tmatch = tdeposit.filter(t => t.forex_oid == params.currency)
+                tmatch = tdeposit.filter(t => t.Transaction.forex_oid == params.currency)
                 logger.debug(`---Step3: Matched ${tmatch.length} transactions vs actions having same currency `)
                 if (tmatch.length > 0){
                   //sum all transactions before matching
-                  const totaldeposit = tmatch.reduce((a, b) => +a + +b.foreign_amount, 0);
+                  const totaldeposit = tmatch.reduce((a, b) => +a + +b.Transaction.foreign_amount, 0);
                   if (totaldeposit != params.amount){
                     logger.warn(`----Step4: Amount NOT matching. Pulling action but raising a console alert`)
-                    store._addAlert(req.body.POSId, 3, t.forex_oid, 3, 'transactionsAdd', 'Alert_sendtoposMismatch', (err,qres) => {
+                    store._addAlert(req.body.POSId, 3, params.currency , 3, 'transactionsAdd', 'Alert_sendtoposMismatch', (err,qres) => {
                       if (err) {
                         logger.error ("-----Step4: error while logging alert: "+err)
                       }else{
@@ -160,7 +171,7 @@ exports.actionsGet = (req, res) => {
       res.status(500).send("Error while retrieving POS actions");
     }else{
       let fres = qres[0].filter(e => e.action != 'sendtopos')
-      logger.info(`Fetched ${fres.length} actions after filtering`)
+      logger.debug(`Fetched ${fres.length} actions after filtering`)
       res.status(200).send(fres)  
     }
   })

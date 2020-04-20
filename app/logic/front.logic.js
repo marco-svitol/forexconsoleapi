@@ -22,7 +22,7 @@ exports.login = (req, res) => {  // Login Service //40ena!
     }else{
       if (lresult.success){
         //req.session.username = username;
-        logger.info(`Login OK for user ${username}. Token expires in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`)      ;
+        logger.debug(`Login OK for user ${username}. Token expires in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`)      ;
         var token = jwt.sign({ id: username, role: lresult.role }, tokenproperties.secret, {
           expiresIn: tokenproperties.tokenTimeout
         });
@@ -31,7 +31,7 @@ exports.login = (req, res) => {  // Login Service //40ena!
         usersrole[username] = lresult.role
         res.status(200).send({ auth: true, token: token, refreshtoken: refreshToken});
       }else{ //if((loginmsg === 'disabled') or (loginmsg === 'notfound'))      {
-        logger.info(`Login failed for user ${username}: ${lresult}`);
+        logger.warn(`Login failed for user ${username}: ${lresult}`);
         res.status(401).send({ auth: false});
       }
     }
@@ -46,7 +46,7 @@ exports.refreshtoken = (req, res) => {
     var token = jwt.sign({ id: username, role: usersrole[username]}, tokenproperties.secret, {
       expiresIn: tokenproperties.tokenTimeout
     });
-    logger.info(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`);
+    logger.debug(`Token refreshed for user ${username} : sending new token that will expire in ${Math.round(tokenproperties.tokenTimeout / 6)/10} minutes`);
     res.status(200).send({ auth: true, token: token})
   }
   else {

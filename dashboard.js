@@ -37,7 +37,7 @@ function srvconsoledir(request, start=1, err = 0){ //internal: log service call 
       }else{
         params = JSON.stringify(request.query)
       }
-      logger.info(`${request.path} service request ${params}`)
+      logger.debug(`${request.path} service request ${params}`)
       //perfy.start(rTracer.id())
     }
     else{
@@ -45,7 +45,7 @@ function srvconsoledir(request, start=1, err = 0){ //internal: log service call 
       //let perfMsg = `${perfSecs} secs`
       //if ((config_data.log.thresholdProcessTimeWarning < perfSecs) && (perfSecs < config_data.log.thresholdProcessTimeAlert)) {perfMsg = `${perfMsg} LatencyWarning` }
       //else if (perfSecs > config_data.log.thresholdProcessTimeAlert) {perfMsg = `${perfMsg} LatencyAlert` }
-      logger.info(`${srvname} service completed for ${request.connection.remoteAddress}`)}}// in ${perfMsg}`)}}
+      logger.debug(`${srvname} service completed for ${request.connection.remoteAddress}`)}}// in ${perfMsg}`)}}
   else{
     logger.error(`${srvname} service requested from ${request.connection.remoteAddress} raised this error: ${JSON.stringify(err)}`)
     //perfy.end(rTracer.id())

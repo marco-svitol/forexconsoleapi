@@ -23,7 +23,7 @@ module.exports = myapp => {
 
 function checkJWT(request, response, next) { //Function used by Router to verify token
   if (request.headers.authorization) {// check headers params
-    logger.info (request.headers.authorization)
+    logger.debug (request.headers.authorization)
     jwt.verify(request.headers.authorization, appConfig.tokenproperties.secret, function (err, decoded) {  // check valid token
       if (err) {
         logger.error("CheckJWT failed: not authorized");
