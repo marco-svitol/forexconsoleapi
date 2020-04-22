@@ -85,18 +85,15 @@ exports.transactionsAdd = (req, res) => {
     }
     sqlQuery += `${mysqlformat(spcall, inserts)};`
   }
+  if (sqlQuery == '') return;
   db.query(sqlQuery, (err,qres) => {
     if (err) {
         logger.error("error processing transaction:" + err)
-        return res.status(500).send("Error while processing transactions");
+        res.status(500).send("Error while processing transactions");
     }else{
       qresclean = qres.filter(element => element[0] != undefined)
       responselist = req.body.transactions.map( ({QId}, e) => ({QId, added : qresclean[e][0].result}) )
-      /*
-        function( {QId}, e ){
-          return ({QId, added : qresclean[e][0].result})
-        }
-      )*/
+      /*function( {QId}, e ){return ({QId, added : qresclean[e][0].result})}*/
 
       var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
       var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
@@ -105,7 +102,7 @@ exports.transactionsAdd = (req, res) => {
       res.status(200).send(responselist)
       logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans failed ${transFail.map(e => e[0]._oid).toString()}`)
 
-      //---------------------------------------------------------------------------------------------------------------
+      //-------Run deposit action matching
 
       logger.info("Running deposit matching")
       //Step1 (transaction objs): filter Deposit and successfully added transactions only
@@ -161,6 +158,14 @@ exports.transactionsAdd = (req, res) => {
         })
       }        
     }
+    //-------Refresh totals for this POS
+    store._refreshPOSTotals(req.body.POSId, function(err, res){
+      if (err){
+        logger.error(`RefreshPOSTotal for POS ${req.body.POSId} failed: ${err}`)
+      }else{
+        logger.info(`RefreshPOSTotal for POS ${req.body.POSId} completed`)
+      }
+    })
   })
 }
 
@@ -188,3 +193,39 @@ exports.actionAck = (req, res) => {
     }
   })
 }
+
+//exports._APIKeyGen
+
+exports.register = (req,res) => {
+  store._APIKeyGen(req.body.username, req.body.password, function(err, kgres){
+    if (err){
+      logger.error(`Error generating APIKey for user ${req.body.username} :` + err)
+      return res.status(500).send(`Error generating APIKey for user ${req.body.username}`)
+    }else{
+      if (!kgres.err){
+        store._AddPOS (req.body.POSCode, req.body.POSName, req.body.site, kgres.APIKey, (err, apres) => {
+          if (err){
+            logger.error(`Error adding POS for site ${req.body.site}. POSCode is ${req.body.POSCode}. ` + err)
+            return res.status(500).send(`Error adding POS for site ${req.body.site}. User and password are OK but something went wrong on server side. Sorry.`);
+          }else{
+            if (apres.dupname){
+              logger.warn(`POSName ${req.body.POSName} already exists, please choose another name`)
+              return res.status(400).send(`POSName ${req.body.POSName} already exists, please choose another name`)
+            }
+            else if (apres.new){
+              logger.info(`New POS for site ${req.body.site} added succesfully. APIKey is: ${kgres.APIKey}`)
+            }else{
+              logger.info(`POS for site ${req.body.site} was already registered. New APIKey is: ${kgres.APIKey}`)
+            }
+            return res.status(201).send({new: apres.new, APIKey: kgres.APIKey})
+          }
+        })
+      }else{
+        logger.error(`Cannot generate APIKey: user ${kgres.err}`)
+        return res.status(401).send(`Cannot generate APIKey: user ${kgres.err}`)
+      }
+    }
+  })
+}
+
+

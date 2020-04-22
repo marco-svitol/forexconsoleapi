@@ -77,13 +77,13 @@ exports.maincashdeposit = (req, res) => {
   var amount = req.body.amount
   var exchangerate = req.body.exchangerate
   if (currency === null || currency === '' || amount === null ||  amount === '' || exchangerate === null ||  exchangerate ===''){return res.status(400).send("Bad request, check params please")}
-  db._maincashdeposit(currency, amount, exchangerate, function (err, success) {
+  db._maincashdeposit(currency, amount, exchangerate, function (err, success, total) {
     if (err || !success){
       err?logger.error(`Maincashdeposit error: ${err}`):logger.error(`Maincashdeposit unsuccesfull`)
-      res.status(500).send({ success: false});
+      res.status(500).send({ success: false, total: null});
     }else{
-      logger.debug("Succesfully added maincashdeposit")
-      res.status(200).send({ success: true});
+      logger.info(`Succesfully added ${amount} ${db._currency(currency)} with exchrate ${exchangerate} to maincashdeposit`)
+      res.status(200).send({ success: true, total: total});
     }
   })
 }

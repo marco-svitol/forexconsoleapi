@@ -2,6 +2,8 @@ const dbConfig = require("../config/db.config.js");
 const util = require('util')
 const mysql = require('mysql');
 const pool = mysql.createPool(dbConfig);
+var randtoken = require('rand-token');
+const mysqlformat = require('mysql').format;
 
 pool.getConnection((err, conn) => {
   if (err){
@@ -36,7 +38,7 @@ module.exports._login = function(username, password,role, next){
           next(null,"disabled");
         }
       }else{
-        next(null,"notfound");
+        next(null,"not found or wrong password");
       }
     }
   })
@@ -49,12 +51,10 @@ module.exports._maincashdeposit = function (currency, amount, exchangerate, next
       next (err, false)
     }else{
       if (res.length > 0){
-        if (res[0]){
-          next(null,true);
+          next(null,res[0][0].success, res[0][0].total);
           return;
         }
-      }
-      next(null,false);
+      next(null,false, null);
     }
   })  
 }
@@ -177,7 +177,69 @@ module.exports._addAlert = function (POSId, transtype, currencyId, severity, emi
   })
 }
 
+module.exports._currency = function (currencyId) {
+  currency = [[1,"CHF"],[2,"EUR"],[3,"USD"],[25,"GBP"]]
+  currencyMap = new Map(currency)
+  return currencyMap.get(currencyId)
+}
 
+module.exports._refreshPOSTotals = function (POSId, next){
+  var sqlQuery = 'CALL pcpUpdPOSCash(?);'
+  pool.query(sqlQuery, POSId, (err, res) => {
+    if (err) {
+      return next(err, null)
+    }else{
+      return next(null,res)
+    }
+  })
+}
+
+module.exports._APIKeyGen = function (username, password, next){
+  this._login(username, password, "addpos", function(err, res){
+    if (err){
+      return next(err)
+    }else{
+      if (res.success){
+        //Generate APIKey
+        let newAPIKey = randtoken.uid(50)
+        return next(null,{APIKey: newAPIKey})
+      }else{
+        return next(null, {err: res})
+      }
+    }
+  })
+}
+
+module.exports._AddPOS = function (POSCode, POSName, site, APIKey, next){
+  var sqlQuery1 = 'SELECT POSName FROM POS WHERE POSName = ? AND ? <> POSCode;'
+  pool.query(sqlQuery1, [POSName, POSCode], (err, res) => {
+    if (err) return next(err)
+    if (res.length > 0) {
+      res.dupname = 1
+      return next(null,res)
+    }
+    var sqlQuery2 = 'CALL POSAdd(?,?,?,?);'
+    pool.query(sqlQuery2, [POSCode, POSName, site, APIKey], (err, res) => {
+      if (err) {
+        return next(err, null)
+      }else if(res[0][0].new){
+        //generate table entries for:  
+            var bInsert = ''
+            bInsert += `${mysqlformat(`INSERT INTO pcpPOSCash(POSId, currencyId) SELECT ?, currencyId FROM pcpCurrency;`, [res[0][0].POSId])}`
+            bInsert += `${mysqlformat(`INSERT INTO forex_account_year(currency, account_year, POSId) 
+            SELECT currencyId, YEAR(CURDATE()), ? FROM pcpCurrency WHERE currencyId <= 25;`, [res[0][0].POSId])}`
+            pool.query(bInsert, (err) => {
+              if (err) return next(err)
+            })
+            //forex_config
+            //forex_currency
+            //var qCurr =  `INSERT INTO forex_currency(abbrv, national_currency, POSId) 
+            //SELECT currencyId, national_currency, ? FROM pcpCurrency WHERE currencyId <=25`
+        }
+        return next(null,res[0][0])
+    })
+  })
+}
 
 pool.query = util.promisify(pool.query)
 
