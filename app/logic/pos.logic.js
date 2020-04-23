@@ -1,7 +1,6 @@
 const db = require("../database").pool;
 const store = require("../database");
 const logger=require('../logger');  
-//const logger=require('winston');
 const mysqlformat = require('mysql').format;
 
 exports.verifyKey = (req,res,next) => {
@@ -40,21 +39,6 @@ function POSGet(POSCode, APIKey , next){
     }
   })
 }
-
-// function POSAdd(hostname, sn, manuf, site, next){
-//   let strQuery = 'call POSAdd(?,?,?,?,?)'
-//   db.query(strQuery, [hostname, sn, manuf, site, hostname], (err,res) => {
-//     if (err) {
-//       next (err, 0)
-//     }else{
-//       if (res[0].length > 0){
-//         next(null,res[0][0].POSId);
-//       }else{
-//         next(null,0);
-//       }
-//     }
-//   })
-// }
 
 function POSlogHeartBeat(POSId){ 
   let strQuery = 'call POSlogHeartBeat(?)'
@@ -133,15 +117,15 @@ exports.transactionsAdd = (req, res) => {
                   const totaldeposit = tmatch.reduce((a, b) => +a + +b.Transaction.foreign_amount, 0);
                   if (totaldeposit != params.amount){
                     logger.warn(`----Step4: Amount NOT matching. Pulling action but raising a console alert`)
-                    store._addAlert(req.body.POSId, 3, params.currency , 3, 'transactionsAdd', 'Alert_sendtoposMismatch', (err,qres) => {
+                    store._addAlert(req.body.POSId, 3, params.currency , 3, 'transactionsAdd', tmatch[0].Transaction.oid, action.POSActionQueueId , 'alert_sendtoposmismatch', {0: store._currency(params.currency), 1: params.amount, 2: totaldeposit}, (err,qres) => {
                       if (err) {
                         logger.error ("-----Step4: error while logging alert: "+err)
                       }else{
-                        logger.debug(`-----Step4: Alert ${qres} added to console`)
+                        logger.warn(`-----Step4: Alert ${qres} added to console`)
                       }
                     })
                   }else{
-                    logger.debug(`----Step4: Amount matching. Removing action silently`)
+                    logger.info(`----Step4: Amount matching. Removing action silently`)
                   }
                   //remove action
                   store._actionAck (req.body.POSId, action.POSActionQueueId , function (err, qres){
@@ -193,8 +177,6 @@ exports.actionAck = (req, res) => {
     }
   })
 }
-
-//exports._APIKeyGen
 
 exports.register = (req,res) => {
   store._APIKeyGen(req.body.username, req.body.password, function(err, kgres){

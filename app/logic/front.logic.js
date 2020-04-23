@@ -1,7 +1,6 @@
 const appConfig = require("../config/app.config.js");
 const db = require("../database");
 const logger=require('../logger'); 
-//const logger=require('winston');
 const mysqlformat = require('mysql').format;
 const jwt = require('jsonwebtoken');
 var randtoken = require('rand-token')
@@ -14,7 +13,6 @@ exports.login = (req, res) => {  // Login Service //40ena!
   password = req.body.password;
   if (username === null || password === null || username === '' || password ===''){return res.status(400).send("Bad request, check params please")}
   db._login(username,password, "web", function (err, lresult) {
-    //res.setHeader('Access-Control-Allow-Origin', '*')
     if (err) {
       logger.error("Login error:"+err);
       res.status(500).send("Error while logging in");
@@ -30,7 +28,7 @@ exports.login = (req, res) => {  // Login Service //40ena!
         refreshTokens[refreshToken] = username
         usersrole[username] = lresult.role
         res.status(200).send({ auth: true, token: token, refreshtoken: refreshToken});
-      }else{ //if((loginmsg === 'disabled') or (loginmsg === 'notfound'))      {
+      }else{
         logger.warn(`Login failed for user ${username}: ${lresult}`);
         res.status(401).send({ auth: false});
       }
@@ -94,30 +92,70 @@ exports.action = (req, res) => {
   var currency = req.body.currency
   var amount = req.body.amount
   if (action === null || action === '' || POSId === null ||  POSId === '' || currency === null ||  currency ==='' || amount === null ||  amount ===''){return res.status(400).send("Bad request, check params please")}
-  db._addAction(action, POSId, currency, amount, function (err, actionid) {
-    if (err || !actionid){
-      err?(logger.error(`Action ${action} error: ${err}`),res.status(500).send({ actionid: 0}))
-        :(logger.warn(`Action ${action} action not added to queue..already there?`),res.status(200).send({ actionid: 0}))
-    }else{
-      logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
-      res.status(201).send({ actionid: actionid});
-    }
-  })
+  //check if enough amount in MainCash
+  
+  if (['sendtopos'].includes(action)){
+    db._checkMainCash(currency, amount, function(err,chkres){
+      if(err){
+        logger.error('Error while checking MainCash: ' + err)
+        return res.status(500).send('Error while checking MainCash')
+      }
+      if (!chkres.ok){
+        logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${chkres.amount}`)
+        //TODO: ConsoleAlert log
+        return res.status(400).send({ actionid:0, message:'notenough', amountleft: chkres.amount });
+      }
+      db._addAction(action, POSId, currency, amount, function (err, actionid) {
+        if (err || !actionid){
+          err?(logger.error(`Action ${action} error: ${err}`),res.status(500).send({ actionid: 0}))
+            :(logger.warn(`Action ${action} action not added to queue..already there?`),res.status(200).send({ actionid: 0}))
+        }else{
+          logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
+          if (action === 'sendtopos'){
+            //remove from maincashdeposit but check again before...async and multiple sessions...
+            db._withdrawMainCash(currency, amount, function(err, chkwd){
+              if(err){
+                logger.error('Error while withdrawing from MainCash: ' + err)
+                return res.status(500).send('Error while withdrawing from MainCash')
+              }
+              if(!chkwd.ok){
+                logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${chkwd.amount}`)
+                return res.status(400).send({ actionid:0, message:'notenough', amountleft: chkwd.amount });
+              }
+              logger.debug(`Succesfully withdrawn ${amount} ${db._currency(currency)} from MainCash`)
+              res.status(201).send({ actionid: actionid, message: 'ok', result: chkwd.amount});
+            })
+          }
+        }
+      })
+    })
+  }
 }
 
 exports.cancelAction = (req, res) => {
   var actionId = req.body.actionId
   if (actionId === null || actionId === ''){return res.status(400).send("Bad request, check params please")}
-  db._cancelAction(actionId, function (err, actionid) {
+  db._cancelAction(actionId, function (err, actionid, newtotal) {
     if (err || !actionid){
       err?(logger.error(`Action ${actionid} not cancelled error: ${err}`),res.status(500).send({ actionid: 0}))
-      :(logger.warn(`Action ${actionid} cancel failed : was executed meanwhile?`),res.status(200).send({ actionid: 0}))
+      :(logger.warn(`Action ${actionid} cancel failed : was executed meanwhile?`),res.status(200).send({ actionid: 0})) //Warning Async Risk
     }else{
       logger.debug(`Succesfully cencelled action ${actionid}`)
-      res.status(200).send({ actionid: actionid});
+      //verify if is "sendtopos" and in case redeposit amount
+      res.status(200).send({ actionid: actionid, newtotal: newtotal });
     }
   })
 }
-exports.cancelCHFtransfer = (req, res) => {
+
+exports.alerts = (req, res) => {
+  db._alerts(req.body.params, function (err, alerts) {
+    if (err){
+      logger.error(`Alerts view error: ${err}`)
+      res.status(500).send("Error retrieving data");
+    }else{
+      logger.debug("Succesfully fetched alerts")
+      res.status(200).json(alerts);
+    }
+  })
 }
 

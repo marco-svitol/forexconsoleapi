@@ -17,7 +17,7 @@ module.exports = myapp => {
   router.post("/maincashdeposit", front.maincashdeposit);
   router.post("/action", front.action);
   router.post("/cancelAction", front.cancelAction);
-
+  router.get("/alerts", front.alerts);
   myapp.use('/api/front', router);
 };
 

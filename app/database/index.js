@@ -61,7 +61,6 @@ module.exports._maincashdeposit = function (currency, amount, exchangerate, next
 
 module.exports._addAction = function (action, POSId, currency, amount, next) {
   let strQuery = `CALL pcpPOSAddAction (?,"${action}",?,?);`
-  //const actionparams  = `{"currency" : "${currency}","amount" : ${amount}}`
   pool.query(strQuery, [POSId, currency, amount], (err,res) => {
     if (err) {
       next (err, 0)
@@ -78,19 +77,30 @@ module.exports._addAction = function (action, POSId, currency, amount, next) {
 }
 
 module.exports._cancelAction = function (actionId, next) {
-  let strQuery = `CALL pcpPOSCancelAction (?);`
-  pool.query(strQuery, [actionId], (err,res) => {
-    if (err) {
-      next (err, 0)
-    }else{
+  //if action is sendtopos
+  let newtotal = null
+  cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a WHERE q.actionId = ?'
+  pool.query(cQuery, [actionId], (err,ares) => {
+    if (err) return next(err, 0)
+    if (ares.action == 'sendtopos'){
+      //extract params from JSON
+      params = JSON.parse(ares.POSActionParams)
+      this._maincashdeposit(params.currency, params.amount, params.exchangerate, function(err, succ, depres){
+        //warning not checking success here.....
+        newtotal = depres.total
+      })
+    }
+    let strQuery = `CALL pcpPOSCancelAction (?);`
+    pool.query(strQuery, [actionId], (err,res) => {
+      if (err) return next (err, 0)
       if (res.length > 0){
         if (res[0][0].actionid > 0){
-          next(null,res[0][0].actionid);
-          return;
+          return next(null,res[0][0].actionid, newtotal );
         }
+      }else{
+        next(null,0);
       }
-      next(null,0);
-    }
+    })    
   })  
 }
 
@@ -137,6 +147,30 @@ module.exports._mainview = function (next) {
   })  
 }
 
+module.exports._alerts = function (params, next) {
+  let whereand = ' WHERE 1 = 1 '
+  if (params){
+    if (params.POSId != null){whereand += ` AND POSId = ${params.POSId} `}
+    if (params.severity != null){whereand += ` AND severity = ${params.severity} `}
+    if (params.acknowledged != null){whereand += ` AND acknowledged = ${params.acknowledeged} `}
+    if (params.transtype != null){whereand += ` AND transtype = ${params.transtype} `}
+  }
+  let strQuery = `SELECT al.alertId, al.timestamp, al.POSId, p.POSName as POSName, al.transtype, tt.name as transtypeName, al.currencyId, c.name, c.friendly, al.severity, s.severityDescription as severityDescription, acknowledged, emitter, alertmsg, transId, al.actionId, a.action as action 
+  FROM pcpAlerts al
+  JOIN POS p ON p.POSId = al.POSId
+  JOIN transactionType tt ON tt.transTypeId = al.transtype
+  JOIN pcpSeverity s ON s.severityId = al.severity
+  LEFT JOIN pcpPOSActionQueue aq ON aq.POSActionQueueId = al.actionId
+  LEFT JOIN pcpActions a on aq.POSActionId = a.actionId
+  JOIN pcpCurrency c on c.currencyId = al.currencyId
+  ${whereand} ORDER BY al.timestamp;`
+  pool.query(strQuery, (err,res) => {
+    if (err) return next(err)
+    return next(null,res);
+  })
+}
+
+
 //POS
 module.exports._actionsGet = function (POSId, actionfilter, next) {
   var sqlQuery = 'call POSActionsGet(?,?);'
@@ -160,20 +194,37 @@ module.exports._actionAck = function (POSId, POSActionQueueId, next) {
   })
 }
 
-module.exports._addAlert = function (POSId, transtype, currencyId, severity, emitter, alertmsg, next) {
-  var sqlQuery = 'call pcpAddAlert(?,?,?,?,?,?)'
-  pool.query(sqlQuery, [POSId, transtype, currencyId, severity, emitter, alertmsg], (err, res) => {
-    if (err) {
-      next(err, null)
-    }else{
-      if (res.length > 0){
-        if (res[0][0].alertId > 0){
-          next(null,res[0][0].alertId);
-          return;
+function templateString(template, values){
+  let output = template;
+  Object.keys(values)
+      .forEach(key => {
+      output = output.replace(new RegExp(`\\{${key}\\}`, 'gi'), values[key]);
+  });
+  return output;
+};
+
+module.exports._addAlert = function (POSId, transtype, currencyId, severity, emitter, transId, actionId, messageName, messageVars, next) {
+  //retrieve alertmsg template and fill it with params
+  qGetAlertMsg = 'SELECT message FROM pcpAlertsDictionary WHERE messageName = ? AND lang = ?'
+  
+  pool.query(qGetAlertMsg, [messageName, 'IT'], (err, ares) => {
+    if (err) return next(err)
+    if (ares.length < 1) throw(`No alert message named ${messageName}`)
+    alertmsg = templateString (ares[0].message, messageVars);
+    var sqlQuery = 'call pcpAddAlert(?,?,?,?,?,?,?,?)'
+    pool.query(sqlQuery, [POSId, transtype, currencyId, severity, emitter, transId, actionId, alertmsg], (err, res) => {
+      if (err) {
+        next(err, null)
+      }else{
+        if (res.length > 0){
+          if (res[0][0].alertId > 0){
+            next(null,res[0][0].alertId);
+            return;
+          }
         }
+        next(null,0);
       }
-      next(null,0);
-    }
+    })
   })
 }
 
@@ -231,12 +282,34 @@ module.exports._AddPOS = function (POSCode, POSName, site, APIKey, next){
             pool.query(bInsert, (err) => {
               if (err) return next(err)
             })
-            //forex_config
-            //forex_currency
-            //var qCurr =  `INSERT INTO forex_currency(abbrv, national_currency, POSId) 
-            //SELECT currencyId, national_currency, ? FROM pcpCurrency WHERE currencyId <=25`
+            //Future implementations: forex_config forex_currency
         }
         return next(null,res[0][0])
+    })
+  })
+}
+
+module.exports._checkMainCash = function(currencyId, amount, next){
+  chkQuery = 'SELECT amount FROM pcpMainCash WHERE currencyId = ?'
+  pool.query(chkQuery, [currencyId], (err, res) => {
+    if (err) return next(err, null)
+    res[0].ok = true
+    if (res[0].amount-amount<0) {res[0].ok=false}
+    return next(null, res[0])
+  })
+}
+
+module.exports._withdrawMainCash = function(currencyId, amount, next){
+  this._checkMainCash(currencyId, amount, function (err, chkres){
+    if (err) return next(err, null)
+    if (!chkres.ok) return next(null,chkres)
+    wdQuery = 'UPDATE pcpMainCash SET amount = amount - ? WHERE currencyId = ?'
+    pool.query(wdQuery, [amount, currencyId], (err, wdres) => {
+      if (err) return next(err, null)
+      if (wdres.affectedRows != 1) throw (`Error updating MainCash, totals not updated`)
+      wdres.ok = true
+      wdres.amount = chkres.amount - amount
+      return next(null,wdres)
     })
   })
 }
