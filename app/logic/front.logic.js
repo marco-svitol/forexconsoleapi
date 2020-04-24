@@ -86,6 +86,25 @@ exports.maincashdeposit = (req, res) => {
   })
 }
 
+exports.maincashwithdraw = (req, res) => {
+  var currency = req.body.currency
+  var amount = req.body.amount
+  if (currency === null || currency === '' || amount === null ||  amount === ''){return res.status(400).send("Bad request, check params please")}
+  db._maincashwithdraw(currency, amount, function (err, success, total) {
+    if (err){
+      err?logger.error(`Maincashwithdraw error: ${err}`):logger.error(`Maincashwithdraw unsuccesfull`)
+      res.status(500).send({ success: false, total: null});
+    }else if (!success){
+      logger.warn(`Maincashwithdraw: not enough cash`)
+      res.status(200).send({success: false, total: total, message: "notenough"});
+    }
+    else{
+      logger.info(`Succesfully withdrawn ${amount} ${db._currency(currency)} from maincash`)
+      res.status(200).send({ success: true, total: total});
+    }
+  })
+}
+
 exports.action = (req, res) => {
   var action = req.body.action
   var POSId = req.body.POSId
@@ -129,6 +148,16 @@ exports.action = (req, res) => {
         }
       })
     })
+  }else{
+    db._addAction(action, POSId, currency, amount, function (err, actionid) {
+      if (err || !actionid){
+        err?(logger.error(`Action ${action} error: ${err}`),res.status(500).send({ actionid: 0}))
+          :(logger.warn(`Action ${action} action not added to queue..already there?`),res.status(200).send({ actionid: 0}))
+      }else{
+        logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
+        res.status(201).send({ actionid: actionid, message: 'ok'});
+      }
+    })
   }
 }
 
@@ -155,6 +184,18 @@ exports.alerts = (req, res) => {
     }else{
       logger.debug("Succesfully fetched alerts")
       res.status(200).json(alerts);
+    }
+  })
+}
+
+exports.alertack = (req, res) => {
+  db._alertack(req.body.alertId, function (err, succ) {
+    if (err){
+      logger.error(`Alert ${req.body.alertId} acknowledge error: ${err}`)
+      res.status(500).send(`Error aknowledging alert ${req.body.alertId}`);
+    }else{
+      logger.debug(`Succesfully acknowledged alert ${req.body.alertId}: ${succ}`)
+      res.status(200).send({alertId: req.body.alertId, message: succ});
     }
   })
 }

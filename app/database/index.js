@@ -48,13 +48,26 @@ module.exports._maincashdeposit = function (currency, amount, exchangerate, next
   let strQuery = `CALL pcpMainCashDeposit (?,?,?);`
   pool.query(strQuery, [currency, amount, exchangerate], (err,res) => {
     if (err) {
-      next (err, false)
+      return next (err, false)
     }else{
       if (res.length > 0){
-          next(null,res[0][0].success, res[0][0].total);
-          return;
+        return next(null,res[0][0].success, res[0][0].total);
         }
-      next(null,false, null);
+      return next(null,false, null);
+    }
+  })  
+}
+
+module.exports._maincashwithdraw = function (currency, amount, next) {
+  let strQuery = `CALL pcpMainCashWithdraw (?,?);`
+  pool.query(strQuery, [currency, amount], (err,res) => {
+    if (err) {
+      return next (err, false)
+    }else{
+      if (res.length > 0){
+        return next(null,res[0][0].success, res[0][0].total);
+        }
+      return next(null,false, null);
     }
   })  
 }
@@ -76,29 +89,41 @@ module.exports._addAction = function (action, POSId, currency, amount, next) {
   })  
 }
 
-module.exports._cancelAction = function (actionId, next) {
+module.exports._cancelAction = async function (actionId, next) {
   //if action is sendtopos
   let newtotal = null
-  cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a WHERE q.actionId = ?'
+  cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a ON a.actionId = q.POSActionId WHERE q.POSActionQueueId = ?'
   pool.query(cQuery, [actionId], (err,ares) => {
-    if (err) return next(err, 0)
-    if (ares.action == 'sendtopos'){
+    if (err) return next(err)
+    if (ares[0].action == 'sendtopos'){
       //extract params from JSON
-      params = JSON.parse(ares.POSActionParams)
-      this._maincashdeposit(params.currency, params.amount, params.exchangerate, function(err, succ, depres){
-        //warning not checking success here.....
-        newtotal = depres.total
+      params = JSON.parse(ares[0].POSActionParams)
+      this._maincashdeposit(params.currency, params.amount, params.exchrate, function(err, succ, depres){
+        if (err) return err
+        if (!succ) throw (`Error while canceling action ${actionId}: can't re-deposit`)
+        newtotal = depres  
+        let strQuery = `CALL pcpPOSCancelAction (?);`
+        pool.query(strQuery, [actionId], (err,res) => {
+          if (err) return next (err)
+          if (res.length > 0){
+            if (res[0][0].actionid > 0){
+              return next(null,res[0][0].actionid, newtotal );
+            }
+          }else{
+            return next(null,0);
+          }
+        })  
       })
     }
     let strQuery = `CALL pcpPOSCancelAction (?);`
     pool.query(strQuery, [actionId], (err,res) => {
-      if (err) return next (err, 0)
+      if (err) return next (err)
       if (res.length > 0){
         if (res[0][0].actionid > 0){
           return next(null,res[0][0].actionid, newtotal );
         }
       }else{
-        next(null,0);
+        return next(null,0);
       }
     })    
   })  
@@ -140,7 +165,7 @@ module.exports._mainview = function (next) {
                               .filter(element => element.POSId == pos.POSId && element.action == "CHFtransfer")
                               .map(({ POSId,action,POSActionId,POSActionParams, ...item }) => item)
         }
-        maindata["log"] = res[4]
+        //maindata["log"] = res[4]
         next(null, main)
       }else next(null,0);
     }
@@ -148,7 +173,7 @@ module.exports._mainview = function (next) {
 }
 
 module.exports._alerts = function (params, next) {
-  let whereand = ' WHERE 1 = 1 '
+  let whereand = ' WHERE al.acknowledged = 0 '
   if (params){
     if (params.POSId != null){whereand += ` AND POSId = ${params.POSId} `}
     if (params.severity != null){whereand += ` AND severity = ${params.severity} `}
@@ -225,6 +250,14 @@ module.exports._addAlert = function (POSId, transtype, currencyId, severity, emi
         next(null,0);
       }
     })
+  })
+}
+
+module.exports._alertack = function (alertId, next) {
+  ackQuery = "UPDATE pcpAlerts a SET a.acknowledged = 1 WHERE a.alertId = ? AND a.acknowledged = 0"
+  pool.query(ackQuery, [alertId], (err, res) => {
+    if (err) return next(err)
+    res.affectedRows != 1?next(null, 'alert already acknowledged or alert not exists'):next(null,'ok')
   })
 }
 
