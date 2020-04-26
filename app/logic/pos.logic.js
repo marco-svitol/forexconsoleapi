@@ -4,6 +4,7 @@ const logger=require('../logger');
 const mysqlformat = require('mysql').format;
 
 exports.verifyKey = (req,res,next) => {
+  logger.info (req.body.apiAuth.POSCode)
   try{
     POSGet(req.body.apiAuth.POSCode, req.body.apiAuth.APIKey, (err,POSId) => {
       if(err){

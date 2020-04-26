@@ -253,12 +253,14 @@ module.exports._addAlert = function (POSId, transtype, currencyId, severity, emi
   })
 }
 
+
 module.exports._alertack = function (alertId, next) {
   ackQuery = "UPDATE pcpAlerts a SET a.acknowledged = 1 WHERE a.alertId = ? AND a.acknowledged = 0"
-  pool.query(ackQuery, [alertId], (err, res) => {
+  pool.query(ackQuery, [alertId], function(err, res){
     if (err) return next(err)
     res.affectedRows != 1?next(null, 'alert already acknowledged or alert not exists'):next(null,'ok')
-  })
+  }
+  )
 }
 
 module.exports._currency = function (currencyId) {
@@ -344,6 +346,14 @@ module.exports._withdrawMainCash = function(currencyId, amount, next){
       wdres.amount = chkres.amount - amount
       return next(null,wdres)
     })
+  })
+}
+
+module.exports._importPOSfromBackup = function(ForexDBName, POSId, fromDate, toDate, fromOid, toOid, deleteexisting, next){
+  sqlQuery = 'CALL pcpImportForexDB(?,?,?)'
+  pool.query(sqlQuery, [ForexDBName, POSId, fromDate], (err, res) => {
+    if(err) return next(err)
+    return next(null,res.affectedRows)
   })
 }
 

@@ -20,6 +20,8 @@ module.exports = myapp => {
   router.post("/cancelAction", front.cancelAction);
   router.get("/alerts", front.alerts);
   router.post("/alertack", front.alertack);
+  router.post("/importPOSfromBackup", front.importPOSfromBackup)
+  router.post("/deletePOS", front.deletePOS)
   myapp.use('/api/front', router);
 };
 

@@ -188,15 +188,38 @@ exports.alerts = (req, res) => {
   })
 }
 
-exports.alertack = (req, res) => {
+exports.alertack = function(req, res){
   db._alertack(req.body.alertId, function (err, succ) {
     if (err){
       logger.error(`Alert ${req.body.alertId} acknowledge error: ${err}`)
       res.status(500).send(`Error aknowledging alert ${req.body.alertId}`);
     }else{
-      logger.debug(`Succesfully acknowledged alert ${req.body.alertId}: ${succ}`)
+      logger.info(`Succesfully acknowledged alert ${req.body.alertId}: ${succ}`)
       res.status(200).send({alertId: req.body.alertId, message: succ});
     }
   })
 }
 
+exports.importPOSfromBackup = function(req, res){
+  //Import ForexDB transactions, forex_account_year from BackupDB
+  // req: Source = ForexDBName, dest = POSId  options: delete all existing transactions
+  db._importPOSfromBackup (req.body.ForexDBName, req.body.POSId, req.body.fromDate, req.body.toDate, req.body.fromOid, req.body.toOid, false, (err, nrows) =>{
+    if (err) { 
+      logger.error(`ImportPOSfromBackup error: ${err}`)
+      return res.status(500).send(`ImportPOSfromBackup error: ${err}`)
+    }
+    logger.info(`ImportPOSfromBackup: ${req.body.ForexDBName} imported ${nrows} on POSId ${req.body.POSId}`)
+    db._refreshPOSTotals(req.body.POSId, function(err){
+      if (err){
+        logger.error(`RefreshPOSTotal for POS ${req.body.POSId} failed: ${err}`)
+      }else{
+        logger.info(`RefreshPOSTotal for POS ${req.body.POSId} completed`)
+      }
+    })
+    return res.status(200).send(`ImportPOSfromBackup: ${req.body.ForexDBName} imported ${nrows} on POSId ${req.body.POSId}`)
+  })
+}
+
+exports.deletePOS = function(req, res){
+  
+}
