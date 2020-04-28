@@ -11,7 +11,7 @@ exports.verifyKey = (req,res,next) => {
         logger.error (" cannot process Auth info : " + err)
         POSId = 0
       }
-      if (POSId === 0) {
+      if (POSId == 0) {
         logger.warn("POS not authorized or APIKey is invalid")
           res.status(401).send("POS not authorized or APIKey is invalid");
       }else{
@@ -130,7 +130,7 @@ exports.transactionsAdd = (req, res) => {
                   }
                   //remove action
                   store._actionAck (req.body.POSId, action.POSActionQueueId , function (err, qres){
-                    if (err || qres.length === 0) {
+                    if (err || qres.length == 0) {
                       logger.error("-----Step5: Error pulling sendtopos action from queue:" + err)
                     }else{
                       logger.debug(`-----Step5: Action sendtopos with id ${action.POSActionQueueId} pulled from queue`)
@@ -169,7 +169,7 @@ exports.actionsGet = (req, res) => {
 
 exports.actionAck = (req, res) => {
   store._actionAck (req.body.POSId, req.body.actionAck.POSActionQueueId, function (err, qres){
-    if (err || qres.length === 0) {
+    if (err || qres.length == 0) {
       logger.error("error pulling POS action from queue:" + err)
       res.status(500).send("Error while pulling POS action");
     }else{

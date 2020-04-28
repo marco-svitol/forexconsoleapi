@@ -11,7 +11,7 @@ var usersrole = {}
 exports.login = (req, res) => {  // Login Service //40ena!
   var username = req.body.username,
   password = req.body.password;
-  if (username === null || password === null || username === '' || password ===''){return res.status(400).send("Bad request, check params please")}
+  if (username == null || password == null || username == '' || password ==''){return res.status(400).send("Bad request, check params please")}
   db._login(username,password, "web", function (err, lresult) {
     if (err) {
       logger.error("Login error:"+err);
@@ -74,8 +74,10 @@ exports.maincashdeposit = (req, res) => {
   var currency = req.body.currency
   var amount = req.body.amount
   var exchangerate = req.body.exchangerate
-  if (currency === null || currency === '' || amount === null ||  amount === '' || exchangerate === null ||  exchangerate ===''){return res.status(400).send("Bad request, check params please")}
-  db._maincashdeposit(currency, amount, exchangerate, function (err, success, total) {
+  var counterpartId = req.body.counterpartId
+  if (currency == null || currency == '' || amount == null ||  amount == '' || exchangerate == null ||  exchangerate ==''){return res.status(400).send("Bad request, check params please")}
+  if (counterpartId == null) counterpartId = 1
+  db._maincashdeposit(currency, amount, exchangerate, counterpartId, function (err, success, total) {
     if (err || !success){
       err?logger.error(`Maincashdeposit error: ${err}`):logger.error(`Maincashdeposit unsuccesfull`)
       res.status(500).send({ success: false, total: null});
@@ -89,8 +91,10 @@ exports.maincashdeposit = (req, res) => {
 exports.maincashwithdraw = (req, res) => {
   var currency = req.body.currency
   var amount = req.body.amount
-  if (currency === null || currency === '' || amount === null ||  amount === ''){return res.status(400).send("Bad request, check params please")}
-  db._maincashwithdraw(currency, amount, function (err, success, total) {
+  var counterpartId = req.body.counterpartId
+  if (currency == null || currency == '' || amount == null ||  amount == ''){return res.status(400).send("Bad request, check params please")}
+  if (counterpartId == null) counterpartId = 1
+  db._maincashwithdraw(currency, amount, counterpartId, 0, function (err, success, total) {
     if (err){
       err?logger.error(`Maincashwithdraw error: ${err}`):logger.error(`Maincashwithdraw unsuccesfull`)
       res.status(500).send({ success: false, total: null});
@@ -110,9 +114,8 @@ exports.action = (req, res) => {
   var POSId = req.body.POSId
   var currency = req.body.currency
   var amount = req.body.amount
-  if (action === null || action === '' || POSId === null ||  POSId === '' || currency === null ||  currency ==='' || amount === null ||  amount ===''){return res.status(400).send("Bad request, check params please")}
+  if (action == null || action == '' || POSId == null ||  POSId == '' || currency == null ||  currency =='' || amount == null ||  amount ==''){return res.status(400).send("Bad request, check params please")}
   //check if enough amount in MainCash
-  
   if (['sendtopos'].includes(action)){
     db._checkMainCash(currency, amount, function(err,chkres){
       if(err){
@@ -130,19 +133,19 @@ exports.action = (req, res) => {
             :(logger.warn(`Action ${action} action not added to queue..already there?`),res.status(200).send({ actionid: 0}))
         }else{
           logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
-          if (action === 'sendtopos'){
+          if (action == 'sendtopos'){
             //remove from maincashdeposit but check again before...async and multiple sessions...
-            db._withdrawMainCash(currency, amount, function(err, chkwd){
+            db._maincashwithdraw(currency, amount, POSId, actionId, function(err, success, total){
               if(err){
                 logger.error('Error while withdrawing from MainCash: ' + err)
                 return res.status(500).send('Error while withdrawing from MainCash')
               }
-              if(!chkwd.ok){
-                logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${chkwd.amount}`)
-                return res.status(400).send({ actionid:0, message:'notenough', amountleft: chkwd.amount });
+              if(!success){
+                logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${total}`)
+                return res.status(400).send({ actionid:0, message:'notenough', amountleft: total });
               }
               logger.debug(`Succesfully withdrawn ${amount} ${db._currency(currency)} from MainCash`)
-              res.status(201).send({ actionid: actionid, message: 'ok', result: chkwd.amount});
+              res.status(201).send({ actionid: actionid, message: 'ok', result: total});
             })
           }
         }
@@ -163,7 +166,7 @@ exports.action = (req, res) => {
 
 exports.cancelAction = (req, res) => {
   var actionId = req.body.actionId
-  if (actionId === null || actionId === ''){return res.status(400).send("Bad request, check params please")}
+  if (actionId == null || actionId == ''){return res.status(400).send("Bad request, check params please")}
   db._cancelAction(actionId, function (err, actionid, newtotal) {
     if (err || !actionid){
       err?(logger.error(`Action ${actionid} not cancelled error: ${err}`),res.status(500).send({ actionid: 0}))
@@ -217,6 +220,17 @@ exports.importPOSfromBackup = function(req, res){
       }
     })
     return res.status(200).send(`ImportPOSfromBackup: ${req.body.ForexDBName} imported ${nrows} on POSId ${req.body.POSId}`)
+  })
+}
+
+exports.POSbalancetrend = function(req, res){
+  db._POSbalancetrend (req.body.POSIds, req.body.currencies, req.body.from, req.body.to, (err, qres) => {
+    if (err){
+      logger.error(`Error retrieving POSbalancetrend : ${err}`)
+      return res.status(500).send(`Error while retrieving data`)
+    }
+    logger.debug(`Retrieved POSbalancetrend`);
+    return res.status(200).send(qres);
   })
 }
 

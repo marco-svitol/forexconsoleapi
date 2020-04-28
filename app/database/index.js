@@ -1,5 +1,5 @@
 const dbConfig = require("../config/db.config.js");
-const util = require('util')
+const util = require('util');
 const mysql = require('mysql');
 const pool = mysql.createPool(dbConfig);
 var randtoken = require('rand-token');
@@ -44,28 +44,28 @@ module.exports._login = function(username, password,role, next){
   })
 }
 
-module.exports._maincashdeposit = function (currency, amount, exchangerate, next) {
-  let strQuery = `CALL pcpMainCashDeposit (?,?,?);`
-  pool.query(strQuery, [currency, amount, exchangerate], (err,res) => {
+module.exports._maincashdeposit = function (currency, amount, exchangerate, counterpartId, next) {
+  let strQuery = `CALL pcpMainCashDeposit (?,?,?,?);`
+  pool.query(strQuery, [currency, amount, exchangerate, counterpartId], (err,res) => {
     if (err) {
       return next (err, false)
     }else{
       if (res.length > 0){
-        return next(null,res[0][0].success, res[0][0].total);
+        return next(null,res[1][0].success, res[1][0].total);
         }
       return next(null,false, null);
     }
   })  
 }
 
-module.exports._maincashwithdraw = function (currency, amount, next) {
-  let strQuery = `CALL pcpMainCashWithdraw (?,?);`
-  pool.query(strQuery, [currency, amount], (err,res) => {
+module.exports._maincashwithdraw = function (currency, amount, counterpartId, actionId = 0, next) {
+  let strQuery = `CALL pcpMainCashWithdraw (?,?,?,?);`
+  pool.query(strQuery, [currency, amount, counterpartId, actionId], (err,res) => {
     if (err) {
       return next (err, false)
     }else{
       if (res.length > 0){
-        return next(null,res[0][0].success, res[0][0].total);
+        return next(null,res[1][0].success, res[1][0].total);
         }
       return next(null,false, null);
     }
@@ -92,16 +92,18 @@ module.exports._addAction = function (action, POSId, currency, amount, next) {
 module.exports._cancelAction = async function (actionId, next) {
   //if action is sendtopos
   let newtotal = null
-  cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a ON a.actionId = q.POSActionId WHERE q.POSActionQueueId = ?'
+  //cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a ON a.actionId = q.POSActionId WHERE q.POSActionQueueId = ?'
+  cQuery = 'SELECT a.action, mc.transId FROM pcpPOSActionQueue q JOIN pcpActions a ON a.actionId = q.POSActionId JOIN pcpMainCash mc ON mc.actionId = a.actionId WHERE q.POSActionQueueId = ?'
   pool.query(cQuery, [actionId], (err,ares) => {
     if (err) return next(err)
     if (ares[0].action == 'sendtopos'){
       //extract params from JSON
-      params = JSON.parse(ares[0].POSActionParams)
-      this._maincashdeposit(params.currency, params.amount, params.exchrate, function(err, succ, depres){
-        if (err) return err
-        if (!succ) throw (`Error while canceling action ${actionId}: can't re-deposit`)
-        newtotal = depres  
+      //params = JSON.parse(ares[0].POSActionParams)
+      //this._maincashdeposit(params.currency, params.amount, params.exchrate, function(err, succ, depres){
+      delQuery = 'CALL pcpMainCashDel(?)'
+      pool.query(delQuery, [ares[0].transId], (err,delres) => {
+        if (err) return next(err)
+        newtotal = delres  
         let strQuery = `CALL pcpPOSCancelAction (?);`
         pool.query(strQuery, [actionId], (err,res) => {
           if (err) return next (err)
@@ -334,26 +336,39 @@ module.exports._checkMainCash = function(currencyId, amount, next){
   })
 }
 
-module.exports._withdrawMainCash = function(currencyId, amount, next){
-  this._checkMainCash(currencyId, amount, function (err, chkres){
-    if (err) return next(err, null)
-    if (!chkres.ok) return next(null,chkres)
-    wdQuery = 'UPDATE pcpMainCash SET amount = amount - ? WHERE currencyId = ?'
-    pool.query(wdQuery, [amount, currencyId], (err, wdres) => {
-      if (err) return next(err, null)
-      if (wdres.affectedRows != 1) throw (`Error updating MainCash, totals not updated`)
-      wdres.ok = true
-      wdres.amount = chkres.amount - amount
-      return next(null,wdres)
-    })
-  })
-}
-
 module.exports._importPOSfromBackup = function(ForexDBName, POSId, fromDate, toDate, fromOid, toOid, deleteexisting, next){
   sqlQuery = 'CALL pcpImportForexDB(?,?,?)'
   pool.query(sqlQuery, [ForexDBName, POSId, fromDate], (err, res) => {
     if(err) return next(err)
     return next(null,res.affectedRows)
+  })
+}
+
+module.exports._POSbalancetrend = function (POSIds,currencies,from,to, next){
+  let whereand = ' WHERE 1 = 1 '
+  let select = 'SELECT balancetime as timestep, _POSId as POSId,\`1\`,\`2\`,\`3\`,\`25\`,\`30\`,\`31\` '
+  if (currencies != null){
+    select = `SELECT balancetime as timestep, _POSId as POSId,`
+    for (currency of currencies){
+      select += `\`${currency}\`,`
+    }
+    select = select.slice(0, -1) + ' ';
+  }
+  if (POSIds != null){
+    whereand += ` AND _POSId in (`
+    for (POSId of POSIds){
+      whereand += `${POSId},`
+    }
+    whereand = whereand.slice(0, -1) + ')';
+  }
+  if (from != null){whereand += ` AND balancetime >= '${from}' `}
+  if (to != null){whereand += ` AND balancetime <= '${to}' `}
+  
+  let strQuery = `${select} FROM pcpPOSBalanceTrends ${whereand} `
+  
+  pool.query(strQuery, (err,res) => {
+    if (err) return next(err)
+    return next(null,res);
   })
 }
 
