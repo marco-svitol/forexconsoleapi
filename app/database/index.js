@@ -346,9 +346,9 @@ module.exports._importPOSfromBackup = function(ForexDBName, POSId, fromDate, toD
 
 module.exports._POSbalancetrend = function (POSIds,currencies,from,to, next){
   let whereand = ' WHERE 1 = 1 '
-  let select = 'SELECT balancetime as timestep, _POSId as POSId,\`1\`,\`2\`,\`3\`,\`25\`,\`30\`,\`31\` '
+  let select = 'SELECT balancetime as timestep, _POSId as POSId, POSName, \`1\`,\`2\`,\`3\`,\`25\`,\`30\`,\`31\` '
   if (currencies != null){
-    select = `SELECT balancetime as timestep, _POSId as POSId,`
+    select = `SELECT balancetime as timestep, _POSId as POSId, POSName, `
     for (currency of currencies){
       select += `\`${currency}\`,`
     }
@@ -364,7 +364,7 @@ module.exports._POSbalancetrend = function (POSIds,currencies,from,to, next){
   if (from != null){whereand += ` AND balancetime >= '${from}' `}
   if (to != null){whereand += ` AND balancetime <= '${to}' `}
   
-  let strQuery = `${select} FROM pcpPOSBalanceTrends ${whereand} `
+  let strQuery = `${select} FROM pcpPOSBalanceTrends bt JOIN POS p ON bt._POSId = p.POSId ${whereand} `
   
   pool.query(strQuery, (err,res) => {
     if (err) return next(err)

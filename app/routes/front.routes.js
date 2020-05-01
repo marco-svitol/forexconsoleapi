@@ -22,7 +22,7 @@ module.exports = myapp => {
   router.post("/alertack", front.alertack);
   router.post("/importPOSfromBackup", front.importPOSfromBackup)
   router.post("/deletePOS", front.deletePOS)
-  router.get("/POSbalancetrend", front.POSbalancetrend)
+  router.post("/POSbalancetrend", front.POSbalancetrend)
   myapp.use('/api/front', router);
 };
 

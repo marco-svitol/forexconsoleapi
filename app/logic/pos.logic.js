@@ -3,8 +3,10 @@ const store = require("../database");
 const logger=require('../logger');  
 const mysqlformat = require('mysql').format;
 
+
+
 exports.verifyKey = (req,res,next) => {
-  logger.info (req.body.apiAuth.POSCode)
+  logger.verbose (req.body.apiAuth.POSCode)
   try{
     POSGet(req.body.apiAuth.POSCode, req.body.apiAuth.APIKey, (err,POSId) => {
       if(err){
@@ -25,6 +27,17 @@ exports.verifyKey = (req,res,next) => {
     res.status(401).send("POS not authorized or APIKey is invalid");
   }
 }
+
+exports.clsRequestId = (namespace) => {
+//function clsRequestId(namespace, generateId) {
+  return (req, res, next) => {
+    namespace.run(() => {
+      namespace.set('requestId', req.body.POSId);
+      next();
+    });
+  };
+}
+
 
 function POSGet(POSCode, APIKey , next){
   let strQuery = 'call POSGet(?,?)'

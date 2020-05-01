@@ -135,7 +135,7 @@ exports.action = (req, res) => {
           logger.info(`Succesfully added Action ${action} action to queue with id ${actionid}`)
           if (action == 'sendtopos'){
             //remove from maincashdeposit but check again before...async and multiple sessions...
-            db._maincashwithdraw(currency, amount, POSId, actionId, function(err, success, total){
+            db._maincashwithdraw(currency, amount, POSId, actionid, function(err, success, total){
               if(err){
                 logger.error('Error while withdrawing from MainCash: ' + err)
                 return res.status(500).send('Error while withdrawing from MainCash')
