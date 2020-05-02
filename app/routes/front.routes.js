@@ -23,6 +23,7 @@ module.exports = myapp => {
   router.post("/importPOSfromBackup", front.importPOSfromBackup)
   router.post("/deletePOS", front.deletePOS)
   router.post("/POSbalancetrend", front.POSbalancetrend)
+  router.get("/POS", front.POS)
   myapp.use('/api/front', router);
 };
 

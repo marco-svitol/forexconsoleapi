@@ -234,6 +234,18 @@ exports.POSbalancetrend = function(req, res){
   })
 }
 
+exports.POS = function(req, res){
+  db._POS ((err, qres) => {
+    if (err){
+      logger.error(`Error retrieving POS list : ${err}`)
+      return res.status(500).send(`Error while retrieving POS list`)
+    }
+    logger.debug(`Retrieved POS list`);
+    return res.status(200).send(qres);
+  })
+}
+
+
 exports.deletePOS = function(req, res){
   
 }

@@ -372,6 +372,14 @@ module.exports._POSbalancetrend = function (POSIds,currencies,from,to, next){
   })
 }
 
+module.exports._POS = function(next){
+  sqlQuery = 'SELECT POSId, POSName FROM POS'
+  pool.query(sqlQuery, (err, res) => {
+    if(err) return next(err)
+    return next(null,res)
+  })
+}
+
 pool.query = util.promisify(pool.query)
 
 module.exports.pool = pool;
