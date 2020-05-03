@@ -167,7 +167,7 @@ exports.action = (req, res) => {
 
 exports.cancelAction = (req, res) => {
   var actionid = req.body.actionId
-  if (actionid == null || actionId == ''){return res.status(400).send("Bad request, check params please")}
+  if (actionid == null || actionid == ''){return res.status(400).send("Bad request, check params please")}
   db._cancelAction(actionid, function (err, actionid, newtotal) {
     if (err || !actionid){
       err?(logger.error(`Action ${actionid} not cancelled error: ${err}`),res.status(500).send({ actionid: 0}))
