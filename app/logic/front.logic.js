@@ -114,7 +114,8 @@ exports.action = (req, res) => {
   var POSId = req.body.POSId
   var currency = req.body.currency
   var amount = req.body.amount
-  if (action == null || action == '' || POSId == null ||  POSId == '' || currency == null ||  currency =='' || amount == null ||  amount ==''){return res.status(400).send("Bad request, check params please")}
+  if (action == null || action == '' || POSId == null ||  POSId == '' || currency =='' || amount == null ||  amount ==''){return res.status(400).send("Bad request, check params please")}
+  if (action =='CHFtransfer'){currency = 1}
   //check if enough amount in MainCash
   if (['sendtopos'].includes(action)){
     db._checkMainCash(currency, amount, function(err,chkres){
