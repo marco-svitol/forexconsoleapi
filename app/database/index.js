@@ -93,8 +93,8 @@ module.exports._cancelAction = async function (actionId, next) {
   //if action is sendtopos
   let newtotal = null
   //cQuery = 'SELECT a.action, q.POSActionParams FROM pcpPOSActionQueue q JOIN pcpActions a ON a.actionId = q.POSActionId WHERE q.POSActionQueueId = ?'
-  cQuery = 'SELECT a.action, mc.transId FROM pcpPOSActionQueue q LEFT JOIN pcpActions a ON a.actionId = q.POSActionId LEFT JOIN pcpMainCashTransactions mc ON mc.actionId = a.actionId WHERE q.POSActionQueueId = ?'
-  pool.query(cQuery, [actionId], (err,ares) => {
+  cQuery = 'SELECT a.action, mc.transId FROM pcpPOSActionQueue q LEFT JOIN pcpActions a ON a.actionId = q.POSActionId LEFT JOIN pcpMainCashTransactions mc ON mc.actionId = ? WHERE q.POSActionQueueId = ?'
+  pool.query(cQuery, [actionId, actionId], (err,ares) => {
     if (err) return next(err)
     if (ares.length == 0) return next(null,0)
     if (ares[0].action == 'sendtopos'){
