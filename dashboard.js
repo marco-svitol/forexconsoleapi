@@ -8,10 +8,6 @@ app.use(bodyParser.urlencoded({ extended: true })); // parse requests of content
 const logger=require('./app/logger'); 
 const cors = require("cors");
 
-
- 
-
-
 /*var corsOptions = {
   origin: "http://localhost:8081"
 

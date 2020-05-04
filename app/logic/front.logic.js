@@ -1,7 +1,6 @@
 const appConfig = require("../config/app.config.js");
 const db = require("../database");
 const logger=require('../logger'); 
-const mysqlformat = require('mysql').format;
 const jwt = require('jsonwebtoken');
 var randtoken = require('rand-token')
 var tokenproperties = appConfig.tokenproperties  //Token
@@ -64,7 +63,7 @@ exports.main = (req, res) => {
       logger.error(`Main view error: ${err}`)
       res.status(500).send("Error retrieving data");
     }else{
-      logger.debug("Succesfully fetched main view")
+      logger.verbose("Succesfully fetched main view")
       res.status(200).json(main);
     }
   })
@@ -186,7 +185,7 @@ exports.alerts = (req, res) => {
       logger.error(`Alerts view error: ${err}`)
       res.status(500).send("Error retrieving data");
     }else{
-      logger.debug("Succesfully fetched alerts")
+      logger.verbose("Succesfully fetched alerts")
       res.status(200).json(alerts);
     }
   })

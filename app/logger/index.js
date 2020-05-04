@@ -17,29 +17,48 @@ const appendTimestamp = winston.format((info, opts) => {
   return info;
 });
 
+const myCustomLevels = {
+  levels: {
+    error: 0,
+    warn: 1,
+    info: 2,
+    debug: 3,
+    verbose: 4
+  },
+  colors: {
+    error: 'bold red cyanBG',
+    warn: 'yellow',
+    info: 'green',
+    debug: 'blue',
+    verbose: 'magenta'
+  }
+};
+
+winston.addColors(myCustomLevels.colors);
 //const deflogger = winston.createLogger({
 winston.configure({  
-  level: 'info',
+  levels: myCustomLevels.levels,
   format: winston.format.combine(
     appendTimestamp({ tz: 'Europe/Rome' }),
-    //winston.format.timestamp(),
+    winston.format.colorize(),
     winston.format.printf(log => {
       PId = POSId();
       PId = PId?`${PId.padEnd(4,' ')} | `:'';
-      msg = `${PId}${log.timestamp.padEnd(23,' ')} | ${(''+log.level+'').padEnd(7, ' ')} | ${log.message}`;
+      msg = `${PId}${log.timestamp.padEnd(23,' ')} | ${(''+log.level+'').padEnd(17, ' ')} | ${log.message}`;
       //msg = `${log.timestamp.padEnd(23,' ')} | ${(''+log.level+'').padEnd(7, ' ')} | ${log.message}`;
       return msg;
     })
   ),
-  //defaultMeta: { service: 'user-service' },
   transports: [
     new winston.transports.File({ filename: '../logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: '../logs/combined.log' })
+    new winston.transports.File({ filename: '../logs/combined.log', level: 'warn' })
   ]
 });
 // If we're not in production then log also to the `console` 
 if (process.env.NODE_ENV !== 'production') {
-  winston.add(new winston.transports.Console({level: 'debug'})
+  winston.add(new winston.transports.Console({
+    level: 'verbose'
+  })
   );
 }
 

@@ -98,7 +98,7 @@ exports.transactionsAdd = (req, res) => {
 
       logger.info(`Transactions processed ${transSucc.length}, not processed ${transFail.length}`)
       res.status(200).send(responselist)
-      logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans failed ${transFail.map(e => e[0]._oid).toString()}`)
+      logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans not processed: ${transFail.map(e => e[0]._oid).toString()}`)
 
       //-------Run deposit action matching
 
