@@ -33,12 +33,12 @@ module.exports._login = function(username, password,role, next){
     }else{
       if (res.length > 0){
         if (res[0].active[0] == 1 && res[0].warole[0] == 1){
-          next(null,{success: true, role: res[0].warole[0]}  );
+          next(null,{success: true, role: res[0].role}  );
         }else{
-          next(null,"disabled");
+          next(null,{success: false, role: res[0].role, message: "disabled"});
         }
       }else{
-        next(null,"not found or wrong password");
+        next(null,{success: false, role: '', message: "not found or wrong password"});
       }
     }
   })
@@ -185,12 +185,12 @@ module.exports._alerts = function (params, next) {
   }
   let strQuery = `SELECT al.alertId, al.timestamp, al.POSId, p.POSName as POSName, al.transtype, tt.name as transtypeName, al.currencyId, c.name, c.friendly, al.severity, s.severityDescription as severityDescription, acknowledged, emitter, alertmsg, transId, al.actionId, a.action as action 
   FROM pcpAlerts al
-  JOIN POS p ON p.POSId = al.POSId
-  JOIN transactionType tt ON tt.transTypeId = al.transtype
-  JOIN pcpSeverity s ON s.severityId = al.severity
+  LEFT JOIN POS p ON p.POSId = al.POSId
+  LEFT JOIN transactionType tt ON tt.transTypeId = al.transtype
+  LEFT JOIN pcpSeverity s ON s.severityId = al.severity
   LEFT JOIN pcpPOSActionQueue aq ON aq.POSActionQueueId = al.actionId
   LEFT JOIN pcpActions a on aq.POSActionId = a.actionId
-  JOIN pcpCurrency c on c.currencyId = al.currencyId
+  LEFT JOIN pcpCurrency c on c.currencyId = al.currencyId
   ${whereand} ORDER BY al.timestamp;`
   pool.query(strQuery, (err,res) => {
     if (err) return next(err)

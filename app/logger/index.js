@@ -51,15 +51,14 @@ winston.configure({
   ),
   transports: [
     new winston.transports.File({ filename: '../logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: '../logs/combined.log', level: 'warn' })
+    new winston.transports.File({ filename: '../logs/combined.log', level: process.env.LOGLEVEL_CONSOLE })
   ]
 });
-// If we're not in production then log also to the `console` 
-if (process.env.NODE_ENV !== 'production') {
-  winston.add(new winston.transports.Console({
-    level: 'verbose'
+
+winston.add(new winston.transports.Console({
+  level: process.env.LOGLEVEL_CONSOLE
   })
-  );
-}
+);
+
 
 module.exports=winston;
