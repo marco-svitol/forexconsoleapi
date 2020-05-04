@@ -223,7 +223,7 @@ module.exports._actionAck = function (POSId, POSActionQueueId, next) {
 }
 
 function templateString(template, values){
-  let output = template;
+  let output = template==null?'':template;
   Object.keys(values)
       .forEach(key => {
       output = output.replace(new RegExp(`\\{${key}\\}`, 'gi'), values[key]);

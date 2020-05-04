@@ -101,6 +101,7 @@ exports.maincashwithdraw = (req, res) => {
       err?logger.error(`Maincashwithdraw error: ${err}`):logger.error(`Maincashwithdraw unsuccesfull`)
       res.status(500).send({ success: false, total: null});
     }else if (!success){
+      db._addAlert(0,0, 0 , 1, 'maincashwithdraw', 0, 0 , 'alert_notenoughmaincash', {0: amount, 1: total, 2: db._currency(currency)}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
       logger.warn(`Maincashwithdraw: not enough cash`)
       res.status(200).send({success: false, total: total, message: "notenough"});
     }
@@ -126,6 +127,7 @@ exports.action = (req, res) => {
         return res.status(500).send('Error while checking MainCash')
       }
       if (!chkres.ok){
+        db._addAlert(0,0, 0 , 1, 'actionsendtopos', 0, 0 , 'alert_notenoughmaincash', {0: amount, 1: chkres.amount, 2: db._currency(currency)}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
         logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${chkres.amount}`)
         //TODO: ConsoleAlert log
         return res.status(400).send({ actionid:0, message:'notenough', amountleft: chkres.amount });
@@ -144,6 +146,7 @@ exports.action = (req, res) => {
                 return res.status(500).send('Error while withdrawing from MainCash')
               }
               if(!success){
+                db._addAlert(0,0, 0 , 1, 'actionsendtopos', 0, 0 , 'alert_notenoughmaincash', {0: amount, 1: total, 2: db._currency(currency)}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
                 logger.warn(`Not enough ${db._currency(currency)} in MainCash: you asked for ${amount} and there's ${total}`)
                 return res.status(400).send({ actionid:0, message:'notenough', amountleft: total });
               }
