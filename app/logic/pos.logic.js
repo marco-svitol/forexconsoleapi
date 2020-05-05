@@ -3,8 +3,6 @@ const store = require("../database");
 const logger=require('../logger');  
 const mysqlformat = require('mysql').format;
 
-
-
 exports.verifyKey = (req,res,next) => {
   logger.verbose (req.body.apiAuth.POSCode)
   try{
@@ -37,7 +35,6 @@ exports.clsRequestId = (namespace) => {
     });
   };
 }
-
 
 function POSGet(POSCode, APIKey , next){
   let strQuery = 'call POSGet(?,?)'
@@ -230,5 +227,3 @@ exports.register = (req,res) => {
     }
   })
 }
-
-
