@@ -29,9 +29,9 @@ exports.login = (req, res) => {  // Login Service //40ena!
         res.status(200).send({ auth: true, token: token, refreshtoken: refreshToken, role: lresult.role});
       }else{
         lresult.message=='disabled'?
-        db._addAlert(0,0, 0 , 2, 'login', 0, 0 , 'alert_loginfailed', {0: username, 1: lresult.role, 2: " disabilitato"}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
+        db._addAlert(0,0, 0 , 2, 'login', 0, 0 , 'alert_loginfailed', {0: `${username}(${lresult.role})`, 1: " disabilitato"}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
         :
-        db._addAlert(0,0, 0 , 2, 'login', 0, 0 , 'alert_loginfailed', {0: username, 1: lresult.role, 2: " utente o password errati"}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
+        db._addAlert(0,0, 0 , 2, 'login', 0, 0 , 'alert_loginfailed', {0: username, 1: " utente o password errati"}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
         logger.warn(`Login failed for user ${username}: ${lresult.message}`);
         res.status(401).send({ auth: false});
       }
