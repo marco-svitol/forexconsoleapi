@@ -73,10 +73,12 @@ exports.transactionsAdd = (req, res) => {
         var inserts = [t.oid,new Date().getFullYear(),t.forex_type,t.forex_oid,t.foreign_amount,t.exchange_rate,t.national_amount,t.journal_date_time,t.userID,t.isPOStransaction,req.body.POSId];
       break;
       case "D": //del
+        //store._addAlert(req.body.POSId,t.forex_type,t.forex_oid, 1, 'transactionsAdd', t.oid, 0 , 'alert_POSDeletedTransaction', {0: t.oid}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
         var spcall = 'call POStransactionDel(?,?)'
         var inserts = [t.oid,req.body.POSId];
       break;
       case "U": //undel
+        //store._addAlert(req.body.POSId,t.forex_type,t.forex_oid, 1, 'transactionsAdd', t.oid, 0 , 'alert_POSUndeletedTransaction', {0: t.oid}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
         var spcall = 'call POStransactionUndel(?,?)'
         var inserts = [t.oid,req.body.POSId];
       break;
@@ -96,9 +98,14 @@ exports.transactionsAdd = (req, res) => {
       var transSucc = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 1)
       var transFail = qres.filter(element => element[0] != undefined).filter(element => element[0].result == 0)
 
-      logger.info(`Transactions processed ${transSucc.length}, not processed ${transFail.length}`)
+
+      if (transFail.length==0){
+        logger.debug(`Transactions processed: (${transSucc.length}) ${transSucc.map(e => e[0]._oid).toString()}`)
+      }else{
+        logger.warn(`Transactions processed: (${transSucc.length}) ${transSucc.map(e => e[0]._oid).toString()}, not processed: (${transFail.length}) ${transFail.map(e => e[0]._oid).toString()}`)
+        store._addAlert(req.body.POSId,0,0, 4, 'transactionsAdd', 0, 0 , 'alert_TransactionsNotProcessed', {0: transFail.map(e => e[0]._oid).toString()}, (err) => {if (err) logger.error(`Error saving alert ${err}`)})
+      }
       res.status(200).send(responselist)
-      logger.debug(`Oid processed: ${transSucc.map(e => e[0]._oid).toString()}, trans not processed: ${transFail.map(e => e[0]._oid).toString()}`)
 
       //-------Run deposit action matching
 
