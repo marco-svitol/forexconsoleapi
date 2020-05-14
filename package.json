@@ -2,7 +2,7 @@
   "name": "forexconsoleapi",
   "version": "1.0.0",
   "description": "Forex console API",
-  "main": "server.js",
+  "main": "dashboard.js",
   "scripts": {
     "dev": "echo \"Error: no test specified\" && exit 1"
   },

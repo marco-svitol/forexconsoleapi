@@ -7,6 +7,8 @@ module.exports = {
     "importrootpath" : "../Backup",
     "dbusertable" : "cvusers",
     "dumpfilename"  : "forex_next.sql"
+    //,"TrendsRecalcDaylightFrequency" : "0 6-22 * * *",
+    //"TrendsRecalcNightTimeHour" : "4"
   },
   "tokenproperties": {
     "secret" : process.env.TOKENSECRET,

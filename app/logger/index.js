@@ -26,7 +26,7 @@ const myCustomLevels = {
     verbose: 4
   },
   colors: {
-    error: 'bold red cyanBG',
+    error: 'red',
     warn: 'yellow',
     info: 'green',
     debug: 'blue',

@@ -7,6 +7,7 @@ app.use(bodyParser.json()); // parse requests of content-type - application/json
 app.use(bodyParser.urlencoded({ extended: true })); // parse requests of content-type - application/x-www-form-urlencoded
 const logger=require('./app/logger'); 
 const cors = require("cors");
+//const dashboardschedule = require('./app/schedule')
 
 /*var corsOptions = {
   origin: "http://localhost:8081"
@@ -38,4 +39,8 @@ require("./app/routes/front.routes")(app);
 app.listen(process.env.SERVER_PORT, () => {
   logger.info(`Server is running on port ${process.env.SERVER_PORT}.`);
 });
+
+//dashboardschedule.TrendsRecalcDaylight
+//dashboardschedule.TrendsRecalcNightTime
+
 
