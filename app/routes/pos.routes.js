@@ -11,8 +11,8 @@ module.exports = myapp => {
   router.use(pos.clsRequestId(loggerNamespace, 'posss'));
 
   router.post("/transactionsAdd", pos.transactionsAdd);
-  router.post("/actionsGet", pos.actionsGet);
-  router.post("/actionAck", pos.actionAck);
-  router.post("/register", pos.register);
+  router.post("/actionsGet",      pos.actionsGet);
+  router.post("/actionAck",       pos.actionAck);
+  router.post("/register",        pos.register);
   myapp.use('/api/pos', router);
 };

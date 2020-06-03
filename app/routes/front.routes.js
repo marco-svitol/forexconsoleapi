@@ -10,20 +10,20 @@ module.exports = myapp => {
 
   checkJWT.unless = unless;   //use "unless" module to exclude specific requests for CheckJWT
   router.use(checkJWT.unless({path: ['/api/front/login','/api/front/refreshtoken']})) // Use JWT auth to secure the API router
-  router.post("/login", front.login);
-  router.post("/refreshtoken", front.refreshtoken);
-  router.post("/logout", front.logout);
-  router.get("/main", front.main);
-  router.post("/maincashdeposit", front.maincashdeposit);
-  router.post("/maincashwithdraw", front.maincashwithdraw);
-  router.post("/action", front.action);
-  router.post("/cancelAction", front.cancelAction);
-  router.get("/alerts", front.alerts);
-  router.post("/alertack", front.alertack);
+  router.post("/login",               front.login);
+  router.post("/refreshtoken",        front.refreshtoken);
+  router.post("/logout",              front.logout);
+  router.get("/main",                 front.main);
+  router.post("/maincashdeposit",     front.maincashdeposit);
+  router.post("/maincashwithdraw",    front.maincashwithdraw);
+  router.post("/action",              front.action);
+  router.post("/cancelAction",        front.cancelAction);
+  router.get("/alerts",               front.alerts);
+  router.post("/alertack",            front.alertack);
   router.post("/importPOSfromBackup", front.importPOSfromBackup)
-  router.post("/deletePOS", front.deletePOS)
-  router.post("/POSbalancetrend", front.POSbalancetrend)
-  router.get("/POS", front.POS)
+  router.post("/deletePOS",           front.deletePOS)
+  router.post("/POSbalancetrend",     front.POSbalancetrend)
+  router.get("/POS",                  front.POS)
   myapp.use('/api/front', router);
 };
 

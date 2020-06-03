@@ -33,7 +33,9 @@ module.exports._login = function(username, password,role, next){
     }else{
       if (res.length > 0){
         if (res[0].active[0] == 1 && res[0].warole[0] == 1){
-          next(null,{success: true, role: res[0].role}  );
+          next(null,{success: true, role: res[0].role});
+          let strQuery = `UPDATE systemusers SET logincount = logincount+1, lastlogin = CURRENT_TIMESTAMP() WHERE username = ?`
+          pool.query(strQuery, [username])
         }else{
           next(null,{success: false, role: res[0].role, message: "disabled"});
         }
